@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0c1024">
+<title>מרחב התת-מודע · לוח אימון מנטלי</title>
+<!-- Share previews (WhatsApp / Email / Social) -->
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://avi7756-design.github.io/mind-space/">
+<meta property="og:title" content="מרחב התת-מודע · לוח אימון מנטלי">
+<meta property="og:description" content="היפנוזה עצמית, מנטרות, חיפוש חכם ומעקב יעדים - הכל בכיס. מותאם לאייפון.">
+<meta property="og:image" content="https://avi7756-design.github.io/mind-space/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="מרחב התת-מודע · לוח אימון מנטלי">
+<meta name="twitter:description" content="היפנוזה עצמית, מנטרות, חיפוש חכם ומעקב יעדים - מותאם לאייפון.">
+<meta name="twitter:image" content="https://avi7756-design.github.io/mind-space/og-image.png">
+<!-- PWA install (add to home screen) -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-title" content="התת-מודע">
+<style>
+  :root{
+    --bg:#0a0e1f; --bg2:#0f1530; --card:rgba(255,255,255,.045);
+    --card-br:rgba(255,255,255,.09); --ink:#eef1ff; --ink-dim:#a4abd0;
+    --ink-faint:#6f78a4; --accent:#7c9cff; --accent2:#8be0d4;
+    --gold:#ffce6b; --warn:#ff8a8a; --good:#7ee0a6;
+    --bar:#2a335f; --bar-fill:linear-gradient(90deg,#7c9cff,#8be0d4);
+    --r:18px; --shadow:0 12px 40px rgba(0,0,0,.45);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0;height:100%}
+  body{
+    font-family:-apple-system,"SF Pro Text","Segoe UI","Heebo","Assistant",system-ui,sans-serif;
+    background:
+      radial-gradient(1200px 600px at 80% -10%, #1a2350 0%, transparent 55%),
+      radial-gradient(900px 500px at -10% 110%, #16322f 0%, transparent 50%),
+      linear-gradient(180deg,var(--bg),var(--bg2));
+    color:var(--ink); min-height:100vh;
+    display:flex; justify-content:center;
+    padding:env(safe-area-inset-top) 0 0;
+    -webkit-font-smoothing:antialiased;
+  }
+  #app{
+    width:100%; max-width:460px; min-height:100vh;
+    display:flex; flex-direction:column;
+    padding:14px 14px calc(96px + env(safe-area-inset-bottom));
+  }
+  /* Header */
+  header{display:flex;align-items:center;gap:10px;margin:4px 2px 14px}
+  .logo{
+    width:38px;height:38px;border-radius:12px;flex:0 0 auto;
+    background:linear-gradient(135deg,#7c9cff,#8be0d4);
+    display:grid;place-items:center;font-size:20px;
+    box-shadow:0 6px 18px rgba(124,156,255,.4);
+  }
+  header h1{font-size:15px;margin:0;font-weight:700;letter-spacing:.2px}
+  header p{font-size:11px;margin:1px 0 0;color:var(--ink-faint)}
+  .hdr-meta{margin-inline-start:auto;text-align:left}
+  .hdr-meta .clock{font-size:13px;font-weight:600;color:var(--ink-dim)}
+  .hdr-meta .greet{font-size:10px;color:var(--ink-faint)}
+
+  .view{animation:rise .35s cubic-bezier(.2,.8,.2,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+
+  .card{
+    background:var(--card);border:1px solid var(--card-br);
+    border-radius:var(--r);padding:16px;margin-bottom:12px;
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);
+    box-shadow:var(--shadow);
+  }
+  .card h2{font-size:14px;margin:0 0 4px;display:flex;align-items:center;gap:7px}
+  .card .sub{font-size:11px;color:var(--ink-faint);margin:0 0 12px}
+  .tag{display:inline-block;font-size:10px;color:var(--accent2);background:rgba(139,224,212,.1);
+       border:1px solid rgba(139,224,212,.25);padding:2px 8px;border-radius:20px}
+
+  /* Main menu tiles */
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .tile{
+    background:var(--card);border:1px solid var(--card-br);border-radius:16px;
+    padding:14px;text-align:start;cursor:pointer;transition:.18s;position:relative;overflow:hidden;
+  }
+  .tile:active{transform:scale(.96);background:rgba(124,156,255,.12)}
+  .tile .code{position:absolute;inset-inline-end:10px;top:10px;font-size:10px;font-weight:800;
+              color:var(--accent);letter-spacing:1px;opacity:.8}
+  .tile .ic{font-size:22px}
+  .tile .nm{font-size:13px;font-weight:700;margin-top:7px}
+  .tile .ds{font-size:10.5px;color:var(--ink-faint);margin-top:2px;line-height:1.45}
+
+  /* Buttons / chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+  .chip{
+    background:rgba(255,255,255,.05);border:1px solid var(--card-br);color:var(--ink);
+    border-radius:12px;padding:9px 13px;font-size:13px;cursor:pointer;transition:.15s;font-family:inherit;
+    flex:1 1 auto;text-align:center;min-width:42px;
+  }
+  .chip:active{transform:scale(.94)}
+  .chip.sel{background:linear-gradient(135deg,#7c9cff,#8be0d4);color:#091029;border-color:transparent;font-weight:800}
+  .chip.scale{flex:0 0 auto;width:42px;height:42px;display:grid;place-items:center;font-weight:700;border-radius:12px}
+
+  .btn{
+    display:block;width:100%;border:none;border-radius:14px;padding:13px;font-size:14px;font-weight:800;
+    background:linear-gradient(135deg,#7c9cff,#8be0d4);color:#08102a;cursor:pointer;font-family:inherit;
+    margin-top:6px;transition:.15s;
+  }
+  .btn:active{transform:scale(.97)}
+  .btn.ghost{background:rgba(255,255,255,.06);color:var(--ink);border:1px solid var(--card-br)}
+
+  .q{margin-bottom:14px}
+  .q .qt{font-size:13px;font-weight:600;margin-bottom:7px}
+  .q .qt small{color:var(--ink-faint);font-weight:400;font-size:10.5px}
+
+  /* Metric bars */
+  .metric{display:flex;align-items:center;gap:10px;margin:9px 0}
+  .metric .mi{font-size:17px;width:24px;text-align:center;flex:0 0 auto}
+  .metric .ml{font-size:11.5px;color:var(--ink-dim);width:58px;flex:0 0 auto}
+  .bartrack{flex:1;height:12px;background:var(--bar);border-radius:8px;overflow:hidden}
+  .barfill{height:100%;border-radius:8px;background:var(--bar-fill);transition:width .6s cubic-bezier(.2,.8,.2,1)}
+  .metric .mv{font-size:12px;font-weight:800;width:30px;text-align:center;flex:0 0 auto}
+  .ascii{font-family:"SF Mono","Menlo",monospace;letter-spacing:2px;font-size:15px;color:var(--accent2)}
+  .stars{font-size:18px;letter-spacing:3px;text-align:center;margin:8px 0}
+
+  .flag{background:rgba(255,138,138,.12);border:1px solid rgba(255,138,138,.35);color:var(--warn);
+        border-radius:12px;padding:9px 12px;font-size:12px;font-weight:700;margin-top:8px;text-align:center}
+  .note{background:rgba(255,206,107,.1);border:1px solid rgba(255,206,107,.3);color:var(--gold);
+        border-radius:12px;padding:10px 12px;font-size:11.5px;margin-top:10px;line-height:1.5}
+
+  /* tables / logs */
+  table{width:100%;border-collapse:collapse;font-size:11px;margin-top:8px}
+  th,td{padding:7px 5px;text-align:center;border-bottom:1px solid rgba(255,255,255,.06)}
+  th{color:var(--ink-faint);font-weight:600;font-size:10px}
+  td{color:var(--ink-dim)}
+  tr:last-child td{border-bottom:none}
+
+  .mantra{background:linear-gradient(135deg,rgba(124,156,255,.1),rgba(139,224,212,.07));
+          border:1px solid var(--card-br);border-radius:14px;padding:14px;font-size:14px;line-height:1.7;
+          margin-top:10px;font-weight:500}
+  .mantra .lbl{font-size:10px;color:var(--accent2);font-weight:800;display:block;margin-bottom:4px;letter-spacing:.5px}
+
+  .mlist .mi-row{padding:10px 0;border-bottom:1px solid rgba(255,255,255,.06);font-size:13px;line-height:1.6}
+  .mlist .mi-row:last-child{border-bottom:none}
+  .mlist .htag{font-size:10px;color:var(--accent);margin-bottom:3px;font-weight:700}
+
+  /* A4 player */
+  .player{text-align:center;padding:8px 4px}
+  .phase-name{font-size:12px;color:var(--accent2);font-weight:800;letter-spacing:1px;margin-bottom:4px}
+  .phase-text{font-size:16px;line-height:1.75;min-height:120px;display:flex;align-items:center;justify-content:center;padding:10px}
+  .ring{position:relative;width:120px;height:120px;margin:6px auto 14px}
+  .ring svg{transform:rotate(-90deg)}
+  .ring .rc-bg{stroke:var(--bar)}
+  .ring .rc-fg{stroke:url(#grad);stroke-linecap:round;transition:stroke-dashoffset 1s linear}
+  .ring .rt{position:absolute;inset:0;display:grid;place-items:center;font-size:24px;font-weight:800}
+  .breath{width:84px;height:84px;border-radius:50%;margin:0 auto 12px;
+          background:radial-gradient(circle,rgba(139,224,212,.5),rgba(124,156,255,.15));
+          animation:breathe 8s ease-in-out infinite}
+  @keyframes breathe{0%,100%{transform:scale(.6);opacity:.5}50%{transform:scale(1);opacity:1}}
+  .steps{display:flex;justify-content:center;gap:6px;margin-top:10px}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--bar)}
+  .dot.on{background:var(--accent2);box-shadow:0 0 8px var(--accent2)}
+
+  .profilecard{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .pc-item{background:rgba(255,255,255,.04);border-radius:12px;padding:10px}
+  .pc-item .k{font-size:10px;color:var(--ink-faint)}
+  .pc-item .v{font-size:13px;font-weight:700;margin-top:3px}
+
+  .trend{display:flex;align-items:center;gap:8px;margin:7px 0;font-size:13px}
+  .trend .tu{font-size:18px;width:26px;text-align:center}
+  .up{color:var(--good)} .down{color:var(--warn)} .flat{color:var(--ink-faint)}
+  .histo{display:flex;align-items:flex-end;gap:6px;height:90px;margin:10px 0 4px;padding:0 4px}
+  .hbar{flex:1;background:linear-gradient(180deg,#7c9cff,#3a4582);border-radius:5px 5px 0 0;
+        position:relative;min-height:4px;transition:height .6s}
+  .hbar span{position:absolute;bottom:-17px;left:0;right:0;text-align:center;font-size:9px;color:var(--ink-faint)}
+  .hbar b{position:absolute;top:-15px;left:0;right:0;text-align:center;font-size:9px;color:var(--accent2)}
+
+  .empty{text-align:center;color:var(--ink-faint);font-size:12px;padding:18px 8px;line-height:1.6}
+
+  /* Footer command line */
+  footer{
+    position:fixed;bottom:0;left:0;right:0;z-index:50;
+    display:flex;justify-content:center;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom));
+    background:linear-gradient(180deg,transparent,var(--bg) 38%);
+  }
+  .cmdbar{
+    width:100%;max-width:460px;display:flex;gap:6px;align-items:center;
+    background:rgba(16,20,42,.92);border:1px solid var(--card-br);border-radius:16px;
+    padding:6px;backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);box-shadow:var(--shadow);
+  }
+  .cmdbar .codes{display:flex;gap:4px;flex:1;overflow-x:auto;scrollbar-width:none}
+  .cmdbar .codes::-webkit-scrollbar{display:none}
+  .codebtn{flex:0 0 auto;background:rgba(255,255,255,.05);border:1px solid var(--card-br);color:var(--ink-dim);
+           border-radius:10px;padding:8px 10px;font-size:12px;font-weight:800;cursor:pointer;font-family:inherit;transition:.15s}
+  .codebtn:active{transform:scale(.92);background:var(--accent);color:#091029}
+  .codebtn.home{background:linear-gradient(135deg,#7c9cff,#8be0d4);color:#091029}
+  .cmdinput{width:54px;flex:0 0 auto;background:rgba(255,255,255,.06);border:1px solid var(--card-br);
+            color:var(--ink);border-radius:10px;padding:8px;font-size:12px;text-align:center;font-family:inherit;text-transform:uppercase}
+  .cmdinput::placeholder{color:var(--ink-faint);text-transform:none}
+  .footer-codes-text{font-size:10px;color:var(--ink-faint);text-align:center;margin-top:6px}
+
+  .toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:99;
+    background:rgba(20,26,52,.97);border:1px solid var(--card-br);color:var(--ink);
+    padding:10px 16px;border-radius:14px;font-size:12.5px;box-shadow:var(--shadow);
+    opacity:0;transition:.3s;pointer-events:none;max-width:90%}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .link{color:var(--accent);text-decoration:none;font-weight:600}
+
+  /* Nav bar (back / home / forward / search) */
+  .navbar{display:flex;gap:7px;margin:0 2px 12px;align-items:center;overflow-x:auto;scrollbar-width:none}
+  .navbar::-webkit-scrollbar{display:none}
+  .navbtn{flex:0 0 auto;background:var(--card);border:1px solid var(--card-br);color:var(--ink-dim);
+    border-radius:12px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
+  .navbtn:active{transform:scale(.93)}
+  .navbtn.dis{opacity:.32;pointer-events:none}
+  .navbtn.home{background:rgba(124,156,255,.14);color:var(--accent);border-color:rgba(124,156,255,.3)}
+  .navbtn.search{margin-inline-start:auto;background:linear-gradient(135deg,#7c9cff,#8be0d4);color:#091029;border-color:transparent}
+
+  /* Search / smart index */
+  .searchbox{display:flex;gap:7px;margin-top:6px}
+  .searchbox input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--card-br);color:var(--ink);
+    border-radius:12px;padding:12px;font-size:14px;font-family:inherit}
+  .searchbox input::placeholder{color:var(--ink-faint)}
+  .plan-step{display:flex;gap:10px;align-items:flex-start;padding:11px 0;border-bottom:1px solid rgba(255,255,255,.06)}
+  .plan-step:last-child{border-bottom:none}
+  .plan-num{flex:0 0 auto;width:24px;height:24px;border-radius:50%;background:linear-gradient(135deg,#7c9cff,#8be0d4);
+    color:#091029;font-size:12px;font-weight:800;display:grid;place-items:center;margin-top:1px}
+  .plan-step .pc{font-size:13px;line-height:1.5}
+  .plan-step .pc small{display:block;color:var(--ink-faint);font-size:10.5px;margin-top:2px}
+  .jumpbtn{background:rgba(124,156,255,.12);border:1px solid rgba(124,156,255,.3);color:var(--accent);
+    border-radius:10px;padding:6px 11px;font-size:12px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:6px;margin-inline-start:6px}
+  .jumpbtn:active{transform:scale(.93)}
+
+  /* Goals */
+  .goal{background:rgba(255,255,255,.04);border:1px solid var(--card-br);border-radius:14px;padding:13px;margin-bottom:10px}
+  .goal .gh{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:700}
+  .goal .gh .gx{margin-inline-start:auto;color:var(--ink-faint);font-size:16px;cursor:pointer;padding:0 4px}
+  .goal .gmeta{font-size:10.5px;color:var(--ink-faint);margin:3px 0 8px}
+  .gtrack{height:10px;background:var(--bar);border-radius:8px;overflow:hidden}
+  .gfill{height:100%;border-radius:8px;background:var(--bar-fill);transition:width .7s cubic-bezier(.2,.8,.2,1)}
+  .gpct{font-size:11px;font-weight:800;color:var(--accent2);margin-top:5px;display:flex;justify-content:space-between}
+  .goal.done{border-color:rgba(126,224,166,.4);background:rgba(126,224,166,.07)}
+  .streakcard{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,rgba(255,206,107,.12),rgba(255,138,138,.06));
+    border:1px solid rgba(255,206,107,.25);border-radius:14px;padding:13px;margin-bottom:12px}
+  .streakcard .sn{font-size:30px;font-weight:800;color:var(--gold);line-height:1}
+  .streakcard .sl{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="logo">🌀</div>
+    <div>
+      <h1>מרחב התת-מודע</h1>
+      <p>לוח אימון מנטלי · v1.0</p>
+    </div>
+    <div class="hdr-meta">
+      <div class="clock" id="clock">--:--</div>
+      <div class="greet" id="greet"></div>
+    </div>
+  </header>
+  <div class="navbar">
+    <button class="navbtn" id="navback" onclick="back()" title="אחורה">‹</button>
+    <button class="navbtn" id="navfwd" onclick="fwd()" title="קדימה">›</button>
+    <button class="navbtn home" onclick="go('M0')" title="מסך ראשי">🏠 ראשי</button>
+    <button class="navbtn" onclick="go('IX')" title="חיפוש חכם">🔍 חיפוש</button>
+    <button class="navbtn share" onclick="shareApp()" title="שתף">📤 שתף</button>
+  </div>
+  <div id="view" class="view"></div>
+</div>
+
+<footer>
+  <div>
+    <div class="cmdbar">
+      <button class="codebtn home" onclick="go('M0')">M0</button>
+      <div class="codes" id="codes"></div>
+      <input class="cmdinput" id="cmd" placeholder="קוד" maxlength="3"
+             onkeydown="if(event.key==='Enter')runCmd()" oninput="this.value=this.value.toUpperCase()">
+    </div>
+  </div>
+</footer>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ============================================================
+   PHASE 1 — CORE STATE & PERSISTENCE
+============================================================ */
+const LS_KEY = 'hypno_dashboard_v1';
+const DEFAULT_STATE = {
+  profile:{ target:'רוגע', time:'לפי צורך', duration:'5-7 דק', tone:'רגשי-מרגיע', gratitude:'תמיד', set:false },
+  current:null,            // latest S1 metrics
+  log:[],                  // appendable history
+  audio:{ duration:'30 min', mode:'רוגע', lastQuery:'' },
+  goals:[]                 // tracked goals
+};
+let STATE = load();
+function load(){ try{ return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(localStorage.getItem(LS_KEY))||{}); }catch(e){ return JSON.parse(JSON.stringify(DEFAULT_STATE)); } }
+function save(){ localStorage.setItem(LS_KEY, JSON.stringify(STATE)); }
+
+/* ============================================================
+   PHASE 2 — SEED DATA: A3 MANTRA LIBRARY
+   מקור: "כוחו של התת מודע - מדיטציה והצהרות"
+============================================================ */
+const A3 = [
+  { tags:['#בוקר','#אנרגיה'], items:[
+    'אני בשיפור עצמי על בסיס יומיומי',
+    'יש בי הכוח לשנות',
+    'יש בי הכוח לצמוח ולגדול בקצב שמתאים לי',
+    'הצלחה זורמת בתוכי והיא נובעת ממני באופן טבעי' ]},
+  { tags:['#שפע','#עשייה'], items:[
+    'תודה על הגדילה וההתפתחות שלי בכל יום יותר ויותר',
+    'יש בי אמונה בעצמי',
+    'יש בי הסכמה לקחת את המקום הטבעי שלי בחיים',
+    'דיבור חיובי בתוך עצמי מבטיח את העצמאות שלי את החופש שלי מרחיב את האפשרויות שלי את ההגשמה שלי' ]},
+  { tags:['#רוגע','#בריאות'], items:[
+    'הגוף שלי בריא מבריא ומתאזן מרגע לרגע הגוף שלי מתחזק יחד איתי',
+    'בגוף שלי ישנה חוכמה עמוקה וגבוהה, גוף שלי יודע לרפא ולחזק את עצמו',
+    'יש בי את הידע איך להירגע',
+    'יש בי הסכמה לחיות עם יותר רגיעה' ]},
+  { tags:['#אי-ודאות','#ביטחון'], items:[
+    'הסנטר שלי עוצמתי יותר, הוא ממגנט אליי טוב',
+    'האור שבי מתחזק האומץ שבי מתגבר ומתחזק גם הוא',
+    'הביטחון שקיים בי מתפשט בתוכי ועוטף אותי החוצה כמו איזושהיא הילה של הגנה של שקט',
+    'משהו בי יודע שיהיה בסדר, וגם אם עדיין לא בסדר הדברים הסתדרו' ]}
+];
+// map target -> mantra group index
+const TARGET_GROUP = { 'אנרגיה':0,'שפע':1,'כסף-חרדה':1,'רוגע':2,'שינה':2,'בריאות':2,'מיקוד':0,'ביטחון':3 };
+
+/* ============================================================
+   HELPERS
+============================================================ */
+const $ = id => document.getElementById(id);
+const view = () => $('view');
+function bar(n){ n=Math.max(0,Math.min(5,Math.round(n))); return '▓'.repeat(n)+'░'.repeat(5-n); }
+function starStr(n){ n=Math.max(1,Math.min(5,Math.round(n))); return '⭐'.repeat(n)+'☆'.repeat(5-n); }
+function pct(n){ return (Math.max(0,Math.min(5,n))/5*100); }
+function nowStr(){ const d=new Date(); return d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}); }
+function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+const FOOTER_TEXT = `<div class="footer-codes-text">קודים: S1 | A1 | A2 | A4 | A5 | F1 | F2</div>`;
+
+/* clock + greeting */
+function tickClock(){
+  const d=new Date(); $('clock').textContent=d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'});
+  const h=d.getHours();
+  $('greet').textContent = h<11?'בוקר טוב 🌅':h<16?'צהריים טובים ☀️':h<20?'אחר הצהריים 🌤️':'ערב טוב 🌙';
+}
+setInterval(tickClock,1000); tickClock();
+
+/* ============================================================
+   ROUTER
+============================================================ */
+const ROUTES = {};
+let HIST=['M0'], HPTR=0, NAVMODE=false;
+function go(code){
+  code=(code||'M0').toUpperCase();
+  if(ROUTES[code]){
+    if(!NAVMODE){ HIST=HIST.slice(0,HPTR+1); if(HIST[HPTR]!==code){ HIST.push(code); HPTR=HIST.length-1; } }
+    const v=view(); v.classList.remove('view'); void v.offsetWidth; v.classList.add('view'); ROUTES[code](); window.scrollTo(0,0);
+  }
+  else toast('קוד לא מוכר: '+code);
+  renderCodes(code); updateNav();
+}
+function back(){ if(HPTR>0){ HPTR--; NAVMODE=true; go(HIST[HPTR]); NAVMODE=false; } }
+function fwd(){ if(HPTR<HIST.length-1){ HPTR++; NAVMODE=true; go(HIST[HPTR]); NAVMODE=false; } }
+function updateNav(){
+  const b=$('navback'), f=$('navfwd');
+  if(b) b.classList.toggle('dis', HPTR<=0);
+  if(f) f.classList.toggle('dis', HPTR>=HIST.length-1);
+}
+function runCmd(){ const c=$('cmd'); if(c.value.trim()){ go(c.value.trim()); c.value=''; c.blur(); } }
+function shareApp(){
+  const url=location.href.split('#')[0];
+  const data={ title:'מרחב התת-מודע', text:'לוח אימון מנטלי - היפנוזה עצמית, מנטרות, חיפוש חכם ומעקב יעדים 🌀', url };
+  if(navigator.share){ navigator.share(data).catch(()=>{}); }
+  else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('הקישור הועתק ✓ הדבק בוואטסאפ / מייל'),()=>toast(url)); }
+  else { toast(url); }
+}
+const CODE_LIST=['IX','S1','A1','A2','A4','A5','G1','F1','F2'];
+function renderCodes(active){
+  $('codes').innerHTML = CODE_LIST.map(c=>`<button class="codebtn${c===active?' home':''}" onclick="go('${c}')">${c}</button>`).join('');
+}
+
+/* ============================================================
+   M0 — MAIN MENU
+============================================================ */
+ROUTES.M0 = function(){
+  const c = STATE.current;
+  const status = c
+    ? `<div class="ascii">${bar(c.energy)} ⚡ &nbsp; ${bar(c.calm)} 🌿 &nbsp; ${bar(c.focus)} 🧠</div>
+       <div class="stars">${starStr(c.overall)}</div>`
+    : `<div class="empty">עדיין לא בוצעה הערכת מצב היום.<br>הקש <b>S1</b> כדי להתחיל ⚡</div>`;
+  view().innerHTML = `
+  <div class="card">
+    <h2>👋 שלום, ${esc(STATE.profile.set? 'מוכן/ה לתרגול':'אורח/ת')}</h2>
+    <p class="sub">${c?('מצב נוכחי · '+esc(c.when)):'התת-מודע שלך מקשיב. בוא נתחיל בקטן.'}</p>
+    ${status}
+  </div>
+  <div class="grid">
+    ${tile('IX','🔍','חיפוש חכם','אמור מה צריך — נבנה לך תוכנית')}
+    ${tile('S1','🎛️','הערכת מצב','5 שאלות מהירות — אנרגיה, רוגע, מיקוד')}
+    ${tile('A4','🧘','היפנוזה עצמית','תסריט מודרך בזמן אמת, ללא אודיו')}
+    ${tile('A2','🗣️','מנטרה מיידית','הצהרה מותאמת למצב הנוכחי')}
+    ${tile('A5','📊','אנליטיקה','מגמות 7 ימים והמלצות')}
+    ${tile('A1','🎵','מוזיקת רקע','מחרוזת חיפוש 432Hz / אמביינט')}
+    ${tile('G1','🎯','יעדים ומעקב','קבע יעדים — נעקוב יחד')}
+    ${tile('F1','🗂️','כרטיס פרופיל','ההעדפות שלי')}
+  </div>
+  ${FOOTER_TEXT}`;
+};
+function tile(code,ic,nm,ds){ return `<button class="tile" onclick="go('${code}')">
+  <span class="code">${code}</span><div class="ic">${ic}</div><div class="nm">${nm}</div><div class="ds">${ds}</div></button>`; }
+
+/* ============================================================
+   S1 — MOOD & ENERGY ASSESSMENT ENGINE
+============================================================ */
+const S1Q = [
+  { i:'⚡', t:'רמת אנרגיה', lo:'נמוך', hi:'גבוה' },
+  { i:'🌿', t:'רמת רוגע', lo:'מתוח', hi:'רגוע' },
+  { i:'🧠', t:'רמת מיקוד', lo:'מפוזר', hi:'חד' },
+  { i:'💰', t:'חרדה / עומס פיננסי', lo:'גבוה', hi:'נמוך' },
+  { i:'🙂', t:'מצב רוח כללי', lo:'ירוד', hi:'מצוין' },
+];
+let s1ans=[0,0,0,0,0];
+ROUTES.S1 = function(){
+  s1ans=[0,0,0,0,0];
+  view().innerHTML = `
+  <div class="card">
+    <h2>🎛️ הערכת מצב <span class="tag">S1</span></h2>
+    <p class="sub">הקש/י דירוג אחד לכל שאלה (1–5). מהיר, בלי הקלדה.</p>
+    <div id="s1q"></div>
+    <button class="btn" id="s1go" onclick="s1submit()" style="opacity:.5;pointer-events:none">השלם/י הערכה ✓</button>
+  </div>${FOOTER_TEXT}`;
+  $('s1q').innerHTML = S1Q.map((q,qi)=>`
+    <div class="q">
+      <div class="qt">${q.i} ${q.t} <small>(1=${q.lo} · 5=${q.hi})</small></div>
+      <div class="chips">${[1,2,3,4,5].map(v=>`<button class="chip scale" id="s1_${qi}_${v}" onclick="s1pick(${qi},${v})">${v}</button>`).join('')}</div>
+    </div>`).join('');
+};
+function s1pick(qi,v){
+  s1ans[qi]=v;
+  for(let x=1;x<=5;x++) $(`s1_${qi}_${x}`).classList.toggle('sel',x===v);
+  if(s1ans.every(a=>a>0)){ const b=$('s1go'); b.style.opacity=1; b.style.pointerEvents='auto'; }
+}
+function s1submit(){
+  const [q1,q2,q3,q4,q5]=s1ans;
+  const energy=q1, focus=q3, calm=+( (q2+q5)/2 ).toFixed(1);
+  const overall=+(( q1+q2+q3+q4+q5)/5).toFixed(1);
+  const finFlag = q4<=2;
+  const entry={ when:nowStr(), ts:Date.now(), energy, calm, focus, money:q4, mood:q5, overall, finFlag, note:'' };
+  STATE.current=entry; STATE.log.push(entry); save();
+  s1result(entry); animateBars();
+}
+function animateBars(){
+  requestAnimationFrame(()=>{ document.querySelectorAll('.barfill').forEach((el,i)=>{
+    const row=el.closest('.metric'); const v=row?parseFloat(row.querySelector('.mv').textContent):0;
+    setTimeout(()=>el.style.width=pct(v)+'%',60+i*70);
+  }); });
+}
+function s1result(e){
+  view().innerHTML=`
+  <div class="card">
+    <h2>✅ ההערכה נקלטה <span class="tag">S1</span></h2>
+    <p class="sub">${esc(e.when)} · נשמר ביומן</p>
+    ${metricRow('⚡','אנרגיה',e.energy)}
+    ${metricRow('🌿','רוגע',e.calm)}
+    ${metricRow('🧠','מיקוד',e.focus)}
+    ${metricRow('💰','רוגע כספי',e.money)}
+    ${metricRow('🙂','מצב רוח',e.mood)}
+    <div class="stars">${starStr(e.overall)} <span style="font-size:12px;color:var(--ink-faint)">(${e.overall}/5)</span></div>
+    ${e.finFlag?'<div class="flag">⚠️ חרדה כספית גבוהה — מומלץ תרגול ביטחון (A4)</div>':''}
+    <button class="btn" onclick="go('A2')">🗣️ מנטרה מותאמת למצב</button>
+    <button class="btn ghost" onclick="go('A4')">🧘 התחל תרגול היפנוזה</button>
+  </div>${FOOTER_TEXT}`;
+}
+function metricRow(ic,label,val){
+  return `<div class="metric"><span class="mi">${ic}</span><span class="ml">${label}</span>
+    <div class="bartrack"><div class="barfill" style="width:0"></div></div>
+    <span class="mv">${val}</span></div>`;
+}
+// animate bars after render
+const _origGo=go;
+window.go=function(c){ _origGo(c); animateBars(); };
+
+/* ============================================================
+   P1 / A6 — PROFILING SETUP
+============================================================ */
+const P1Q=[
+  { key:'target', t:'1. יעד מרכזי', opts:['שינה','רוגע','אנרגיה','מיקוד','ביטחון','כסף-חרדה'] },
+  { key:'time', t:'2. זמן תרגול מועדף', opts:['בוקר','צהריים','ערב','לפי צורך'] },
+  { key:'duration', t:'3. משך מפגש', opts:['2-3 דק','5-7 דק','10 דק'] },
+  { key:'tone', t:'4. סגנון שפה', opts:['קצר-חד','רגשי-מרגיע','ניטרלי'] },
+  { key:'gratitude', t:'5. מנוע הכרת תודה', opts:['תמיד','לפעמים','לא'] },
+];
+let p1draft={};
+ROUTES.P1=ROUTES.A6=function(){
+  p1draft=Object.assign({},STATE.profile);
+  view().innerHTML=`
+  <div class="card">
+    <h2>📋 הגדרת פרופיל <span class="tag">P1</span></h2>
+    <p class="sub">בחר/י תשובה לכל שדה — נבנה כרטיס פרופיל אישי.</p>
+    <div id="p1q"></div>
+    <button class="btn" onclick="p1save()">שמור פרופיל 💾</button>
+  </div>${FOOTER_TEXT}`;
+  $('p1q').innerHTML=P1Q.map(q=>`
+    <div class="q"><div class="qt">${q.t}</div>
+    <div class="chips">${q.opts.map(o=>`<button class="chip${p1draft[q.key]===o?' sel':''}" onclick="p1pick('${q.key}','${o}',this)">${o}</button>`).join('')}</div></div>`).join('');
+};
+function p1pick(k,v,el){ p1draft[k]=v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
+function p1save(){ STATE.profile=Object.assign(STATE.profile,p1draft,{set:true}); save(); toast('הפרופיל נשמר ✓'); go('F1'); }
+
+/* ============================================================
+   F1 — PROFILE CARD
+============================================================ */
+ROUTES.F1=function(){
+  const p=STATE.profile;
+  view().innerHTML=`
+  <div class="card">
+    <h2>🗂️ כרטיס פרופיל <span class="tag">F1</span></h2>
+    <p class="sub">${p.set?'ההעדפות הפעילות שלך':'ברירות מחדל — מומלץ להגדיר פרופיל'}</p>
+    <div class="profilecard">
+      ${pcItem('🎯 יעד מרכזי',p.target)}
+      ${pcItem('🕐 זמן מועדף',p.time)}
+      ${pcItem('⏱️ משך מפגש',p.duration)}
+      ${pcItem('💬 סגנון שפה',p.tone)}
+      ${pcItem('🙏 הכרת תודה',p.gratitude)}
+      ${pcItem('📈 מפגשים',STATE.log.length+' רשומות')}
+    </div>
+    <button class="btn" onclick="go('P1')">✏️ ערוך פרופיל (P1)</button>
+    <button class="btn ghost" onclick="go('F2')">📒 צפה ביומן (F2)</button>
+  </div>${FOOTER_TEXT}`;
+};
+function pcItem(k,v){ return `<div class="pc-item"><div class="k">${k}</div><div class="v">${esc(v)}</div></div>`; }
+
+/* ============================================================
+   F2 — MOOD LOG TABLE
+============================================================ */
+ROUTES.F2=function(){
+  const rows=[...STATE.log].reverse().slice(0,12);
+  const body = rows.length? rows.map(e=>`<tr>
+      <td style="font-size:10px">${esc(e.when)}</td>
+      <td>${e.energy}</td><td>${e.focus}</td><td>${e.calm}</td>
+      <td>${e.finFlag?'⚠️':e.money}</td>
+      <td>${starStr(e.overall).slice(0,1).repeat(Math.round(e.overall))||'·'}</td>
+    </tr>`).join('') : `<tr><td colspan="6" class="empty">היומן ריק — בצע/י S1 ראשון</td></tr>`;
+  view().innerHTML=`
+  <div class="card">
+    <h2>📒 יומן מצב-רוח <span class="tag">F2</span></h2>
+    <p class="sub">${STATE.log.length} רשומות · מוצגות אחרונות</p>
+    <table>
+      <thead><tr><th>תאריך/שעה</th><th>⚡</th><th>🧠</th><th>🌿</th><th>כסף</th><th>סטטוס</th></tr></thead>
+      <tbody>${body}</tbody>
+    </table>
+    ${STATE.log.length?'<button class="btn ghost" onclick="clearLog()">🗑️ נקה יומן</button>':''}
+  </div>${FOOTER_TEXT}`;
+};
+function clearLog(){ if(confirm('למחוק את כל רשומות היומן?')){ STATE.log=[]; STATE.current=null; save(); toast('היומן נוקה'); go('F2'); } }
+
+/* ============================================================
+   A1 — AUDIO FRAMEWORK
+============================================================ */
+let a1sel={ dur:'30 min', mode:'רוגע' };
+function setAudioMode(m){ a1sel.mode=m; }
+function jumpMantra(t){ A2_OVERRIDE=t; go('A2'); }
+const A1MODES={ 'רוגע':'מוזיקה 432Hz לשינה עמוקה - ללא מילים', 'שינה':'מוזיקה 432Hz לשינה עמוקה - ללא מילים',
+  'מיקוד':'30 minute morning ambient no vocals', 'אנרגיה':'energizing morning ambient music no vocals' };
+ROUTES.A1=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🎵 מוזיקת רקע <span class="tag">A1</span></h2>
+    <p class="sub">בחר/י משך ומצב — נבנה מחרוזת חיפוש מותאמת ל-YouTube.</p>
+    <div class="q"><div class="qt">⏱️ משך</div>
+      <div class="chips" id="a1dur">${['30 min','60 min'].map(d=>`<button class="chip${a1sel.dur===d?' sel':''}" onclick="a1pick('dur','${d}',this)">${d}</button>`).join('')}</div></div>
+    <div class="q"><div class="qt">🎯 מצב</div>
+      <div class="chips" id="a1mode">${['רוגע','שינה','מיקוד','אנרגיה'].map(m=>`<button class="chip${a1sel.mode===m?' sel':''}" onclick="a1pick('mode','${m}',this)">${m}</button>`).join('')}</div></div>
+    <button class="btn" onclick="a1build()">🔎 צור מחרוזת חיפוש</button>
+    <div id="a1out"></div>
+    <div class="note">🔉 עוצמת שמע מומלצת: נמוכה (מוזיקת רקע). יש לאפשר לצליל להישאר ברקע המודעות, לא במוקד.</div>
+  </div>${FOOTER_TEXT}`;
+};
+function a1pick(k,v,el){ a1sel[k]=v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
+function a1build(){
+  const base=A1MODES[a1sel.mode]||A1MODES['רוגע'];
+  const min=a1sel.dur.split(' ')[0];
+  const q=`${base} ${min} דקות`;
+  STATE.audio={ duration:a1sel.dur, mode:a1sel.mode, lastQuery:q }; save();
+  const yt='https://www.youtube.com/results?search_query='+encodeURIComponent(q);
+  $('a1out').innerHTML=`
+    <div class="mantra"><span class="lbl">מחרוזת חיפוש</span>${esc(q)}</div>
+    <button class="btn" onclick="copyTxt('${esc(q).replace(/'/g,"\\'")}')">📋 העתק מחרוזת</button>
+    <a class="btn ghost" style="text-decoration:none" href="${yt}" target="_blank">▶️ פתח ב-YouTube</a>`;
+}
+function copyTxt(t){ navigator.clipboard?.writeText(t).then(()=>toast('הועתק ✓'),()=>toast('העתקה נכשלה')); }
+
+/* ============================================================
+   A2 — INSTANT MANTRA GENERATION
+============================================================ */
+let A2_OVERRIDE=null;        // set by smart search
+ROUTES.A2=function(){
+  const c=STATE.current, p=STATE.profile;
+  let targetForMantra = c ? (c.finFlag?'כסף-חרדה':(c.calm<=2.5?'רוגע':(c.energy<=2?'אנרגיה':p.target))) : p.target;
+  if(A2_OVERRIDE){ targetForMantra=A2_OVERRIDE; A2_OVERRIDE=null; }
+  const gi = TARGET_GROUP[targetForMantra] ?? 2;
+  const grp = A3[gi];
+  const anchor = grp.items[Math.floor(Math.random()*grp.items.length)];
+
+  // structured custom mantra
+  const gratObj = { 'כסף-חרדה':'השפע שכבר קיים בחיי','רוגע':'הרגיעה שזמינה לי ברגע זה','אנרגיה':'הכוח שמתעורר בי כל בוקר',
+    'מיקוד':'הבהירות שמתחדדת בתוכי','ביטחון':'הביטחון שגדל בי יום אחר יום','שינה':'המנוחה שגופי יודע לקבל',
+    'שפע':'השפע והעשייה שזורמים אליי בכל יום' };
+  const grat = gratObj[targetForMantra] || 'הצמיחה שלי בכל יום';
+  const custom = [
+    `אני מודה על ${grat}.`,
+    `אני מחויב/ת לדרך ול-100% שלי — לתהליך, לא רק לתוצאה.`,
+    `גם בלי תוצאה מיידית — אני בדרך הנכונה, ומשהו בי יודע שיהיה בסדר.`
+  ];
+
+  view().innerHTML=`
+  <div class="card">
+    <h2>🗣️ מנטרה מיידית <span class="tag">A2</span></h2>
+    <p class="sub">${c?('מותאם למצב הנוכחי · יעד: '+esc(targetForMantra)):('לפי הפרופיל · יעד: '+esc(targetForMantra))}</p>
+
+    <div class="mantra"><span class="lbl">① הכרת תודה</span>${esc(custom[0])}</div>
+    <div class="mantra"><span class="lbl">② מחויבות לתהליך</span>${esc(custom[1])}</div>
+    <div class="mantra"><span class="lbl">③ יציבות באי-ודאות</span>${esc(custom[2])}</div>
+
+    <div class="mantra"><span class="lbl">⚓ עוגן מהספרייה ${grp.tags.join(' ')}</span>${esc(anchor)}</div>
+
+    <button class="btn" onclick="copyTxt('${esc(custom.join(' ')+' '+anchor).replace(/'/g,"\\'")}')">📋 העתק מנטרה מלאה</button>
+    <button class="btn ghost" onclick="go('A2')">🔄 צור גרסה אחרת</button>
+    <button class="btn ghost" onclick="go('A3')">📚 כל ספריית המנטרות (A3)</button>
+  </div>${FOOTER_TEXT}`;
+};
+
+/* A3 — full library browser */
+ROUTES.A3=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>📚 ספריית מנטרות <span class="tag">A3</span></h2>
+    <p class="sub">מתוך "כוחו של התת-מודע — מדיטציה והצהרות"</p>
+    <div class="mlist">
+      ${A3.map(g=>g.items.map(it=>`<div class="mi-row"><div class="htag">${g.tags.join(' ')}</div>${esc(it)}</div>`).join('')).join('')}
+    </div>
+    <button class="btn ghost" onclick="go('A2')">↩️ חזרה למנטרה מותאמת</button>
+  </div>${FOOTER_TEXT}`;
+};
+
+/* ============================================================
+   A4 — SCRIPTED SELF-HYPNOSIS (NO-AUDIO ENGINE)
+============================================================ */
+let a4timer=null, a4i=0;
+function a4phases(){
+  const c=STATE.current, p=STATE.profile;
+  const gi = c ? (TARGET_GROUP[c.finFlag?'כסף-חרדה':(c.calm<=2.5?'רוגע':p.target)] ?? 2) : (TARGET_GROUP[p.target] ?? 2);
+  const mantra = A3[gi].items[Math.floor(Math.random()*A3[gi].items.length)];
+  const dur = p.duration==='2-3 דק'?[35,25,90,15,20] : p.duration==='10 דק'?[60,60,360,25,30] : [50,40,210,20,25];
+  return [
+    { n:'השריה',   s:dur[0], breath:true,  t:'עצום/י עיניים. שאיפה איטית דרך האף... ונשיפה ארוכה יותר.\nכל נשיפה משחררת עוד מתח מהכתפיים והלסת.' },
+    { n:'עיגון',    s:dur[1], breath:true,  t:'התמקד/י בנקודה אחת — או בתחושת האוויר בקצה האף.\nהמחשבות יכולות לעבור, את/ה רק צופה בהן.' },
+    { n:'הטמעת מנטרה', s:dur[2], breath:false, mantra,  t:'חזור/חזרי בשקט, פנימה:' },
+    { n:'השתלה התנהגותית', s:dur[3], breath:false, t:'בכל פעם שאקח נשימה עמוקה — הרוגע הזה חוזר אליי מיד.' },
+    { n:'סיום',     s:dur[4], breath:false, t:'שלוש נשימות עמוקות... 3... 2... 1.\nהזז/י אצבעות, פקח/י עיניים — חזרה להווה, רענן/ת וממוקד/ת.' },
+  ];
+}
+ROUTES.A4=function(){
+  clearInterval(a4timer); a4i=0;
+  view().innerHTML=`
+  <div class="card">
+    <h2>🧘 היפנוזה עצמית <span class="tag">A4</span></h2>
+    <p class="sub">תסריט מודרך בזמן אמת · ${esc(STATE.profile.duration)} · ${esc(STATE.profile.tone)}</p>
+    <div class="empty" style="text-align:start;line-height:1.7">
+      מצא/י מקום שקט ונוח. השב/י עם גב נתמך.<br>
+      התרגול יתקדם אוטומטית בחמישה שלבים:<br>
+      <span class="tag" style="margin:6px 4px 0">השריה</span>
+      <span class="tag" style="margin:6px 4px 0">עיגון</span>
+      <span class="tag" style="margin:6px 4px 0">מנטרה</span>
+      <span class="tag" style="margin:6px 4px 0">השתלה</span>
+      <span class="tag" style="margin:6px 4px 0">סיום</span>
+    </div>
+    <button class="btn" onclick="a4start()">▶️ התחל תרגול</button>
+  </div>${FOOTER_TEXT}`;
+};
+function a4start(){
+  const ph=a4phases(); a4i=0;
+  view().innerHTML=`
+  <div class="card">
+    <div class="player">
+      <div class="phase-name" id="a4name"></div>
+      <div class="ring">
+        <svg width="120" height="120">
+          <defs><linearGradient id="grad" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c9cff"/><stop offset="1" stop-color="#8be0d4"/></linearGradient></defs>
+          <circle class="rc-bg" cx="60" cy="60" r="52" fill="none" stroke-width="7"/>
+          <circle class="rc-fg" id="a4ring" cx="60" cy="60" r="52" fill="none" stroke-width="7" stroke-dasharray="327" stroke-dashoffset="0"/>
+        </svg>
+        <div class="rt" id="a4time">0</div>
+      </div>
+      <div id="a4breath"></div>
+      <div class="phase-text" id="a4text"></div>
+      <div class="steps" id="a4dots">${ph.map((_,i)=>`<div class="dot" id="a4d${i}"></div>`).join('')}</div>
+      <button class="btn ghost" style="margin-top:14px" onclick="a4stop()">⏹️ עצור וצא</button>
+    </div>
+  </div>${FOOTER_TEXT}`;
+  runPhase(ph);
+}
+function runPhase(ph){
+  if(a4i>=ph.length){ a4done(); return; }
+  const p=ph[a4i]; let left=p.s; const R=327;
+  $('a4name').textContent='שלב '+(a4i+1)+'/'+ph.length+' · '+p.n;
+  $('a4text').innerHTML = (p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>'));
+  $('a4breath').innerHTML = p.breath?'<div class="breath"></div>':'';
+  ph.forEach((_,i)=>$('a4d'+i).classList.toggle('on',i<=a4i));
+  const upd=()=>{ $('a4time').textContent=left; $('a4ring').style.strokeDashoffset = R*(1-left/p.s); };
+  upd();
+  clearInterval(a4timer);
+  a4timer=setInterval(()=>{ left--; if(left<0){ a4i++; runPhase(ph); } else upd(); },1000);
+}
+function a4done(){
+  clearInterval(a4timer);
+  view().innerHTML=`
+  <div class="card">
+    <h2>✨ התרגול הושלם</h2>
+    <p class="sub">חזרת להווה — רענן/ת וממוקד/ת</p>
+    <div class="mantra" style="text-align:center">כל הכבוד. הרגע הזה שלך.<br>אפשר לקבע אותו עם הערכת מצב קצרה.</div>
+    <button class="btn" onclick="go('S1')">🎛️ הערכת מצב אחרי (S1)</button>
+    <button class="btn ghost" onclick="go('M0')">🏠 חזרה לתפריט</button>
+  </div>${FOOTER_TEXT}`;
+}
+function a4stop(){ clearInterval(a4timer); toast('התרגול נעצר'); go('M0'); }
+
+/* ============================================================
+   A5 — OPERATIONAL ANALYTICS DASHBOARD
+============================================================ */
+ROUTES.A5=function(){
+  const log=STATE.log;
+  if(log.length<1){ view().innerHTML=`<div class="card"><h2>📊 אנליטיקה <span class="tag">A5</span></h2>
+    <div class="empty">אין מספיק נתונים עדיין.<br>בצע/י כמה הערכות <b>S1</b> כדי לראות מגמות.</div>
+    <button class="btn" onclick="go('S1')">🎛️ התחל הערכה</button></div>${FOOTER_TEXT}`; renderCodes('A5'); return; }
+
+  // last 7 days window
+  const wk = log.slice(-7);
+  const avg = k => wk.reduce((s,e)=>s+e[k],0)/wk.length;
+  const trend = k => {
+    if(wk.length<2) return 'flat';
+    const half=Math.ceil(wk.length/2);
+    const a=wk.slice(0,half).reduce((s,e)=>s+e[k],0)/half;
+    const b=wk.slice(half).reduce((s,e)=>s+e[k],0)/(wk.length-half);
+    return b-a>0.4?'up':b-a<-0.4?'down':'flat';
+  };
+  const tv = t => t==='up'?'<span class="up">↑</span>':t==='down'?'<span class="down">↓</span>':'<span class="flat">→</span>';
+
+  // extremes
+  let best=log[0], worst=log[0];
+  log.forEach(e=>{ if(e.overall>best.overall)best=e; if(e.overall<worst.overall)worst=e; });
+
+  // histogram = overall per last entries
+  const hist=log.slice(-7);
+  const histo=`<div class="histo">${hist.map(e=>{
+    const h=pct(e.overall); const lbl=e.when.split(' ')[0];
+    return `<div class="hbar" style="height:${Math.max(8,h)}%"><b>${e.overall}</b><span>${esc(lbl)}</span></div>`;
+  }).join('')}</div>`;
+
+  // optimization directive
+  const directive = buildDirective(avg, wk);
+
+  view().innerHTML=`
+  <div class="card">
+    <h2>📊 אנליטיקה תפעולית <span class="tag">A5</span></h2>
+    <p class="sub">חלון 7 ימים · ${wk.length} רשומות אחרונות</p>
+    <div class="trend"><span class="tu">⚡</span> אנרגיה ${tv(trend('energy'))} <span style="color:var(--ink-faint);margin-inline-start:auto">ממוצע ${avg('energy').toFixed(1)}</span></div>
+    <div class="trend"><span class="tu">🧠</span> מיקוד ${tv(trend('focus'))} <span style="color:var(--ink-faint);margin-inline-start:auto">ממוצע ${avg('focus').toFixed(1)}</span></div>
+    <div class="trend"><span class="tu">🌿</span> רוגע ${tv(trend('calm'))} <span style="color:var(--ink-faint);margin-inline-start:auto">ממוצע ${avg('calm').toFixed(1)}</span></div>
+
+    <div style="font-size:11px;color:var(--ink-faint);margin:14px 0 2px">היסטוגרמת מצב כללי</div>
+    ${histo}
+
+    <div style="display:flex;gap:10px;margin-top:24px">
+      <div class="pc-item" style="flex:1"><div class="k">🟢 היום הכי טוב</div><div class="v" style="font-size:12px">${esc(best.when)}</div><div class="ascii" style="font-size:12px">${starStr(best.overall)}</div></div>
+      <div class="pc-item" style="flex:1"><div class="k">🔴 יום מאתגר</div><div class="v" style="font-size:12px">${esc(worst.when)}</div><div class="ascii" style="font-size:12px">${starStr(worst.overall)}</div></div>
+    </div>
+
+    <div class="note">${directive}</div>
+  </div>${FOOTER_TEXT}`;
+};
+function buildDirective(avg,wk){
+  const e=avg('energy'),f=avg('focus'),c=avg('calm');
+  const finCount=wk.filter(x=>x.finFlag).length;
+  if(finCount>=2) return '💰 המלצה: זוהתה חרדה כספית חוזרת. שלב/י תרגול A4 ביעד "ביטחון" + מנטרת A2 לפני פתיחת מסחר.';
+  const min=Math.min(e,f,c);
+  if(min===e&&e<3) return '⚡ המלצה: הוסף/י S1 בשעה 09:00 ותרגול A4 קצר לאיזון מדד האנרגיה.';
+  if(min===c&&c<3) return '🌿 המלצה: רמת הרוגע נמוכה — תרגול נשימה (A4) בערב + מוזיקת 432Hz (A1) לפני שינה.';
+  if(min===f&&f<3) return '🧠 המלצה: המיקוד יורד — מפגש מיקוד קצר בבוקר (A4) לפני המשימה הראשונה.';
+  return '✅ המגמה יציבה וחיובית. שמור/י על עקביות — מפגש יומי אחד מקבע את ההרגל.';
+}
+
+/* ============================================================
+   IX — DYNAMIC INDEX & SMART SEARCH (intent -> action plan)
+============================================================ */
+const INTENTS=[
+  { key:'sleep', topic:'שינה ומנוחה', icon:'😴',
+    kw:['שינה','לישון','להירדם','נדודי','לילה','עייפ','מנוחה','לנוח','נרדם'],
+    plan:[
+      {t:'מוזיקת רקע 432Hz לשינה',   s:'עוצמה נמוכה, ללא מילים', code:'A1', onc:"setAudioMode('שינה');go('A1')"},
+      {t:'תרגול הרגעה מודרך (A4)',     s:'נשימות עם נשיפה מאריכה', code:'A4', onc:"go('A4')"},
+      {t:'מנטרת רוגע לסיום היום',      s:'חזרה פנימית שקטה',      code:'A2', onc:"jumpMantra('רוגע')"} ]},
+  { key:'morning', topic:'הצהרת בוקר ופתיחת יום', icon:'🌅',
+    kw:['בוקר','להתעורר','התעורר','פתיחת יום','קימה','הצהרת בוקר','start','להתחיל יום'],
+    plan:[
+      {t:'הצהרת בוקר מותאמת (A2)',     s:'הכרת תודה + אנרגיה',     code:'A2', onc:"jumpMantra('אנרגיה')"},
+      {t:'הערכת מצב מהירה (S1)',       s:'מדידת בסיס ליום',        code:'S1', onc:"go('S1')"},
+      {t:'תרגול הטענה קצר (A4)',        s:'עיגון כוונה ליום',       code:'A4', onc:"go('A4')"} ]},
+  { key:'energy', topic:'הגברת אנרגיה', icon:'⚡',
+    kw:['אנרגיה','כוח','חסר לי','תשוש','עייפ','מותש','דלק','ערני','להתעורר','חיות'],
+    plan:[
+      {t:'הערכת מצב (S1)',             s:'נמדוד איפה האנרגיה',     code:'S1', onc:"go('S1')"},
+      {t:'מנטרת אנרגיה (A2)',          s:'הצהרת כוח וצמיחה',      code:'A2', onc:"jumpMantra('אנרגיה')"},
+      {t:'מוזיקת אמביינט ממריצה (A1)', s:'בוקר/עבודה',            code:'A1', onc:"setAudioMode('אנרגיה');go('A1')"} ]},
+  { key:'calm', topic:'רוגע והפגת מתח', icon:'🌿',
+    kw:['רוגע','להירגע','לחץ','מתח','שקט','עצבים','מוצף','להרגע','נשימה','להתאזן'],
+    plan:[
+      {t:'תרגול נשימה מודרך (A4)',     s:'הארכת נשיפות',          code:'A4', onc:"go('A4')"},
+      {t:'מוזיקת 432Hz מרגיעה (A1)',   s:'רקע שקט',               code:'A1', onc:"setAudioMode('רוגע');go('A1')"},
+      {t:'מנטרת רוגע (A2)',            s:'הסכמה לרגיעה',          code:'A2', onc:"jumpMantra('רוגע')"} ]},
+  { key:'focus', topic:'מיקוד וריכוז', icon:'🧠',
+    kw:['מיקוד','ריכוז','מפוזר','להתרכז','להתמקד','פוקוס','בהירות','מבולגן בראש'],
+    plan:[
+      {t:'מפגש מיקוד קצר (A4)',        s:'עיגון נקודת קשב',       code:'A4', onc:"go('A4')"},
+      {t:'מנטרת חדות ובהירות (A2)',    s:'הצהרת מיקוד',           code:'A2', onc:"jumpMantra('מיקוד')"},
+      {t:'אמביינט לעבודה (A1)',        s:'ללא מילים',             code:'A1', onc:"setAudioMode('מיקוד');go('A1')"} ]},
+  { key:'confidence', topic:'ביטחון ואומץ', icon:'🛡️',
+    kw:['ביטחון','אומץ','פחד','חשש','אי ודאות','אי-ודאות','חרד','ספק','להאמין בעצמי'],
+    plan:[
+      {t:'מנטרת ביטחון (A2)',          s:'הילת הגנה ושקט',        code:'A2', onc:"jumpMantra('ביטחון')"},
+      {t:'תרגול עיגון ביטחון (A4)',     s:'התשובה: יהיה בסדר',     code:'A4', onc:"go('A4')"} ]},
+  { key:'money', topic:'חרדה כספית / לפני מסחר', icon:'💰',
+    kw:['כסף','כספי','פיננס','מסחר','הפסד','שוק','עסקה','חרדה כספית','פוזיציה','השקעה'],
+    plan:[
+      {t:'הערכת מצב לפני מסחר (S1)',   s:'זיהוי דגל חרדה כספית',   code:'S1', onc:"go('S1')"},
+      {t:'מנטרת יציבות פיננסית (A2)',  s:'תהליך לפני תוצאה',       code:'A2', onc:"jumpMantra('כסף-חרדה')"},
+      {t:'עיגון רוגע (A4)',            s:'נשימה לפני החלטה',       code:'A4', onc:"go('A4')"} ]},
+  { key:'inspiration', topic:'השראה ושפע', icon:'✨',
+    kw:['השראה','מוטיבציה','דחיפה','שפע','להתרומם','להתלהב','מלא','עשייה','להצליח'],
+    plan:[
+      {t:'מנטרת שפע ועשייה (A2)',      s:'תודה על הצמיחה',        code:'A2', onc:"jumpMantra('שפע')"},
+      {t:'עיון בספריית ההצהרות (A3)',  s:'בחר/י מה שמהדהד',       code:'A3', onc:"go('A3')"},
+      {t:'מבט על ההתקדמות (A5)',       s:'דלק מוטיבציוני מהנתונים', code:'A5', onc:"go('A5')"} ]},
+];
+const SUGG=['מוזיקה לשינה','הצהרת בוקר','חסר לי אנרגיה','השראה','להירגע','ביטחון','חרדה כספית','מיקוד'];
+ROUTES.IX=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🔍 חיפוש חכם · אינדקס דינמי <span class="tag">IX</span></h2>
+    <p class="sub">כתוב/י במילים שלך מה צריך/ה עכשיו — ואבנה לך תוכנית ביצוע.</p>
+    <div class="searchbox">
+      <input id="ixq" placeholder="למשל: מצא לי מוזיקה לשינה" onkeydown="if(event.key==='Enter')ixSearch()">
+      <button class="btn" style="width:auto;margin:0;padding:0 16px" onclick="ixSearch()">חפש</button>
+    </div>
+    <div class="chips" style="margin-top:12px">${SUGG.map(s=>`<button class="chip" onclick="ixRun('${s}')">${s}</button>`).join('')}</div>
+    <div id="ixout"></div>
+  </div>${FOOTER_TEXT}`;
+};
+function ixRun(q){ const el=$('ixq'); if(el) el.value=q; ixSearch(q); }
+function ixSearch(forced){
+  const q=(forced || ($('ixq')?$('ixq').value:'')||'').trim();
+  if(!q){ toast('כתוב/י מה צריך/ה'); return; }
+  const it=matchIntent(q);
+  if(!it){ $('ixout').innerHTML=`<div class="note">לא זוהה נושא מדויק 🤔 נסה/י מילים כמו: שינה, אנרגיה, רוגע, מיקוד, ביטחון, כסף, השראה, בוקר.</div>`; return; }
+  renderPlan(it,q);
+}
+function matchIntent(q){
+  const s=q.toLowerCase(); let best=null,score=0;
+  INTENTS.forEach(it=>{ const n=it.kw.reduce((a,k)=>a+(s.includes(k)?1:0),0); if(n>score){score=n;best=it;} });
+  return score>0?best:null;
+}
+function renderPlan(it,q){
+  const steps=it.plan.map((p,i)=>`
+    <div class="plan-step"><div class="plan-num">${i+1}</div>
+      <div class="pc">${esc(p.t)}<small>${esc(p.s||'')}</small>
+        <button class="jumpbtn" onclick="${p.onc}">▶️ פתח ${p.code}</button>
+      </div></div>`).join('');
+  $('ixout').innerHTML=`
+    <div style="margin-top:14px">
+      <div class="streakcard" style="background:linear-gradient(135deg,rgba(124,156,255,.12),rgba(139,224,212,.06));border-color:rgba(124,156,255,.25)">
+        <div style="font-size:26px">${it.icon}</div>
+        <div><div style="font-size:14px;font-weight:800">תוכנית: ${esc(it.topic)}</div>
+        <div class="sl">נבנתה לפי: "${esc(q)}"</div></div>
+      </div>
+      ${steps}
+      <button class="btn" onclick="startPlan('${it.key}')">🚀 התחל מהשלב הראשון</button>
+      <button class="btn ghost" onclick="addGoalFromIntent('${it.key}')">🎯 הפוך לתוכנית-יעד מתמשכת</button>
+    </div>`;
+}
+function startPlan(key){ const it=INTENTS.find(x=>x.key===key); if(!it)return; eval(it.plan[0].onc); }
+
+/* ============================================================
+   G1 — GOALS: SET, REMEMBER & TRACK
+============================================================ */
+const GOAL_TEMPLATES=[
+  {type:'streak', target:7,  label:'7 ימי תרגול ברצף',   icon:'🔥'},
+  {type:'streak', target:21, label:'21 יום לבניית הרגל',  icon:'🔥'},
+  {type:'count',  target:10, label:'10 מפגשי תרגול',      icon:'📈'},
+  {type:'count',  target:30, label:'30 הערכות מצב',       icon:'🎛️'},
+  {type:'metric', metric:'energy', target:4, label:'ממוצע אנרגיה ⚡ ≥ 4', icon:'⚡'},
+  {type:'metric', metric:'calm',   target:4, label:'ממוצע רוגע 🌿 ≥ 4',  icon:'🌿'},
+  {type:'metric', metric:'focus',  target:4, label:'ממוצע מיקוד 🧠 ≥ 4', icon:'🧠'},
+];
+function calcStreak(){
+  if(!STATE.log.length) return 0;
+  const dayMs=86400000;
+  const days=[...new Set(STATE.log.map(e=>new Date(e.ts).toDateString()))].map(d=>new Date(d).getTime()).sort((a,b)=>b-a);
+  let today=new Date(); today.setHours(0,0,0,0); let expect=today.getTime();
+  if(days[0]!==expect){ expect-=dayMs; if(days[0]!==expect) return 0; }   // allow streak ending yesterday
+  let streak=0;
+  for(const d of days){ if(d===expect){ streak++; expect-=dayMs; } else if(d<expect){ break; } }
+  return streak;
+}
+function goalProgress(g){
+  if(g.type==='streak'){ const s=calcStreak(); return {pct:Math.min(100,s/g.target*100), txt:s+' / '+g.target+' ימים'}; }
+  if(g.type==='count'){ const n=STATE.log.filter(e=>e.ts>=g.createdTs).length; return {pct:Math.min(100,n/g.target*100), txt:n+' / '+g.target+' מפגשים'}; }
+  if(g.type==='metric'){ const wk=STATE.log.slice(-7); const a=wk.length? wk.reduce((s,e)=>s+(e[g.metric]||0),0)/wk.length:0; return {pct:Math.min(100,a/g.target*100), txt:'ממוצע '+a.toFixed(1)+' / '+g.target}; }
+  return {pct:0,txt:''};
+}
+function renderGoal(g){
+  const p=goalProgress(g), done=p.pct>=100;
+  return `<div class="goal${done?' done':''}">
+    <div class="gh">${g.icon} ${esc(g.label)} ${done?'✅':''}<span class="gx" onclick="delGoal('${g.id}')">✕</span></div>
+    <div class="gmeta">נוצר ${new Date(g.createdTs).toLocaleDateString('he-IL')}</div>
+    <div class="gtrack"><div class="gfill" style="width:${p.pct}%"></div></div>
+    <div class="gpct"><span>${p.txt}</span><span>${Math.round(p.pct)}%</span></div>
+  </div>`;
+}
+ROUTES.G1=function(){
+  const streak=calcStreak(), goals=STATE.goals;
+  view().innerHTML=`
+  <div class="card">
+    <h2>🎯 יעדים ומעקב <span class="tag">G1</span></h2>
+    <p class="sub">האפליקציה זוכרת ועוקבת אחרי ההתקדמות שלך אוטומטית.</p>
+    <div class="streakcard">
+      <div class="sn">${streak}🔥</div>
+      <div class="sl"><b>ימי תרגול ברצף</b><br><span style="color:var(--ink-faint)">${STATE.log.length} מפגשים סה"כ · ${goals.length} יעדים פעילים</span></div>
+    </div>
+    ${goals.length? goals.map(renderGoal).join('') : '<div class="empty">אין יעדים עדיין.<br>בחר/י יעד מהיר להתחלה ⤵️</div>'}
+    <div style="font-size:11px;color:var(--ink-faint);margin:16px 0 6px">➕ הוסף/י יעד מהיר:</div>
+    <div class="chips">${GOAL_TEMPLATES.map((g,i)=>`<button class="chip" onclick="addGoal(${i})">${g.icon} ${g.label}</button>`).join('')}</div>
+  </div>${FOOTER_TEXT}`;
+};
+function addGoal(i){ const t=GOAL_TEMPLATES[i]; STATE.goals.push(Object.assign({id:'g'+Date.now(),createdTs:Date.now()},t)); save(); toast('יעד נוסף ✓'); go('G1'); }
+function delGoal(id){ if(confirm('להסיר את היעד?')){ STATE.goals=STATE.goals.filter(g=>g.id!==id); save(); go('G1'); } }
+function addGoalFromIntent(key){
+  const it=INTENTS.find(x=>x.key===key);
+  STATE.goals.push({id:'g'+Date.now(),createdTs:Date.now(),type:'streak',target:7,label:'7 ימי תרגול · '+(it?it.topic:''),icon:(it?it.icon:'🎯')});
+  save(); toast('נוצר יעד מתמשך ✓'); go('G1');
+}
+
+/* ============================================================
+   BOOT
+============================================================ */
+renderCodes('M0');
+go('M0');
+updateNav();
+</script>
+<script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script>
+</body>
+</html>
