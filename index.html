@@ -652,14 +652,52 @@ async function playRec(id){ const blob=await getRec(id); if(!blob){ toast('אי�
   const url=URL.createObjectURL(blob); const a=new Audio(url); a.play().catch(()=>toast('לא ניתן להשמיע')); a.onended=()=>URL.revokeObjectURL(url); toast('🔵 הקול שלך'); }
 async function delRec(id){ if(!confirm('למחוק את ההקלטה שלך?')) return; if(_recdb){ try{ _recdb.transaction('rec','readwrite').objectStore('rec').delete(id); }catch(e){} } recKeys.delete(id); refreshRec(id); toast('ההקלטה נמחקה'); }
 
-/* ---- In-app ambient MUSIC engine (real 432Hz MP3 loops; plays on iOS via media channel, unlike Web Audio) ---- */
-const MODE_FILES={ 'רוגע':'ambient-calm.mp3','שינה':'ambient-sleep.mp3','מיקוד':'ambient-focus.mp3','אנרגיה':'ambient-energy.mp3' };
-let bgAudio=null, curMode=null, audioTimer=null, _fadeT=null;
+/* ============================================================
+   A1 — MUSIC: real CC0 library (streamed, ad-free) + favorites + YouTube
+   Real music plays via <audio> (media channel → works on iPhone).
+============================================================ */
+const AB="https://archive.org/download/freepd/";
+const LIB={
+  'רוגע':[
+    {t:'Eastern Thought · אמביינט',u:AB+'Page2/Ambient%20B%20Eastern%20Thought.mp3'},
+    {t:'Singing Bells · פעמונים',u:AB+'Page2/Ambient%20E%20Singing%20Bells.mp3'},
+    {t:'Glowing · זוהר',u:AB+'Page2/Ambient%20G%20Glowing.mp3'},
+    {t:'Thoughtful · מהורהר',u:AB+'Page2/Ambient%20J%20Thoughtful.mp3'}
+  ],
+  'שינה':[
+    {t:'Quiet Night · לילה שקט',u:AB+'Page2/Quiet%20NIght.mp3'},
+    {t:'Chill Deep · עומק רגוע',u:AB+'Page2/Chill%20Deep.mp3'},
+    {t:'Good Night · לילה טוב',u:AB+'Page2/Good%20Night.mp3'},
+    {t:'Nightshift · משמרת לילה',u:AB+'Page2/Nightshift.mp3'}
+  ],
+  'מיקוד':[
+    {t:'Meditations 1 · מדיטציה',u:AB+'Page2/Grunge%20Meditations%201.mp3'},
+    {t:'Meditations 2 · מדיטציה',u:AB+'Page2/Grunge%20Meditations%202.mp3'},
+    {t:'Ambient Motion · תנועה',u:AB+'Page2/Ambient%20C%20Motion.mp3'},
+    {t:'Plans in Motion · זרימה',u:AB+'Page2/Plans%20in%20Motion.mp3'}
+  ],
+  'אנרגיה':[
+    {t:'Brighter Sun · שמש',u:AB+'Page2/Brighter%20Sun.mp3'},
+    {t:'Morning Snowflake · בוקר',u:AB+'Page2/Morning%20Snowflake.mp3'},
+    {t:'Energizing · ממריץ',u:AB+'misc/Energizing.mp3'},
+    {t:'Sunny Rasta · שמשי',u:AB+'world/Sunny%20Rasta.mp3'}
+  ]
+};
+const YTS={
+  'רוגע':[{t:'Space Ambient 24/7',id:'tNkZsRW7h2c'},{t:'Calm Piano + Rain',id:'Cb3GEK_VHSY'}],
+  'שינה':[{t:'Bedtime Lofi (8 שעות)',id:'UJs6__K7gSY'},{t:'Sweet Dreams Lofi',id:'eTP5PZ8NoeU'},{t:'Sleepy Lofi',id:'ff5lO8TkVX8'}],
+  'מיקוד':[{t:'Deep Focus Lofi',id:'LsWACxHMWBI'},{t:'Lofi R&B (5 שעות)',id:'6j5YW44N1Zw'}],
+  'אנרגיה':[{t:'Upbeat Morning',id:'gam8Dqmux2g'},{t:"Nature's Sunrise",id:'Y47gX0o8zA8'},{t:'Positive Energy',id:'LkPCK1Trxxo'}]
+};
+const YTSEED={ 'רוגע':'calm ambient relaxing music','שינה':'sleep music deep relax','מיקוד':'focus study lofi music','אנרגיה':'upbeat morning positive energy music' };
+
+let bgAudio=null, curMode=null, cur=null, curYT=null, audioTimer=null, _fadeT=null;
 function bgEl(){
   if(!bgAudio){
     bgAudio=document.getElementById('bgaudio');
-    if(!bgAudio){ bgAudio=document.createElement('audio'); bgAudio.id='bgaudio'; bgAudio.loop=true; bgAudio.preload='auto';
-      bgAudio.setAttribute('playsinline',''); bgAudio.setAttribute('webkit-playsinline',''); document.body.appendChild(bgAudio); }
+    if(!bgAudio){ bgAudio=document.createElement('audio'); bgAudio.id='bgaudio'; bgAudio.preload='auto';
+      bgAudio.setAttribute('playsinline',''); bgAudio.setAttribute('webkit-playsinline',''); document.body.appendChild(bgAudio);
+      bgAudio.addEventListener('ended',()=>{ if(cur && cur.src==='lib') libNext(); }); }
   }
   return bgAudio;
 }
@@ -667,60 +705,140 @@ function _fadeTo(target,ms,done){
   const a=bgEl(); clearInterval(_fadeT); const steps=Math.max(1,Math.round(ms/40)); let i=0; const from=a.volume;
   _fadeT=setInterval(()=>{ i++; const k=i/steps; a.volume=Math.max(0,Math.min(1,from+(target-from)*k)); if(i>=steps){ clearInterval(_fadeT); if(done)done(); } },40);
 }
-function startScene(mode,vol){
-  const a=bgEl(); const file=MODE_FILES[mode]||MODE_FILES['רוגע']; const target=(vol!=null?vol:getVol());
-  const switching = curMode && a.src && a.src.indexOf(file)>-1;
-  if(!switching){ a.src='./'+file; }
-  a.loop=true; curMode=mode;
-  try{ a.volume=0; }catch(e){}
+function _playUrl(u,loop,vol){
+  const a=bgEl(); a.loop=!!loop; a.src=u; try{ a.volume=0; }catch(e){}
   const p=a.play();
-  if(p&&p.catch) p.catch(()=>{ toast('🔇 לחץ/י שוב נגן (אייפון: ודא שמתג ההשתקה כבוי)'); });
-  _fadeTo(target,700);
+  if(p&&p.catch) p.catch(()=>{ toast('🔇 לחצ/י שוב נגן (אייפון: מתג השתקה כבוי + ווליום מדיה)'); });
+  _fadeTo(vol!=null?vol:getVol(),700);
 }
-function stopScene(fade){
-  const a=bgEl(); curMode=null; const ms=(fade!=null?fade:0.5)*1000;
-  _fadeTo(0,ms,()=>{ try{ a.pause(); }catch(e){} });
+function playLib(mode,idx,vol){
+  ytStop();
+  const list=LIB[mode]; if(!list||!list.length) return;
+  const n=list.length; idx=((idx%n)+n)%n; const tr=list[idx];
+  cur={src:'lib',mode,idx,t:tr.t,u:tr.u}; curMode=mode;
+  _playUrl(tr.u,false,vol); armAudioTimer(); refreshA1(); toast('▶️ '+tr.t);
 }
+function libNext(){ if(cur&&cur.src==='lib') playLib(cur.mode,cur.idx+1); else playLib(a1sel.mode,0); }
+function startScene(mode,vol){ playLib(mode,0,vol); }   // back-compat: A4/SL background music
+function stopScene(fade){ const a=bgEl(); curMode=null; cur=null; const ms=(fade!=null?fade:0.5)*1000; _fadeTo(0,ms,()=>{ try{ a.pause(); }catch(e){} }); }
 function getVol(){ return (STATE.audio && STATE.audio.vol!=null)?STATE.audio.vol:0.72; }
 function isPlaying(){ return !!curMode; }
-function a1Play(){ startScene(a1sel.mode,getVol()); armAudioTimer(); refreshA1(); toast('▶️ מתנגן: '+a1sel.mode); }
-function a1Stop(){ stopScene(0.6); clearTimeout(audioTimer); refreshA1(); toast('⏹️ נעצר'); }
+function a1Play(){ if(cur&&cur.src) _playUrl(cur.u,cur.src!=='lib',getVol()); else playLib(a1sel.mode,0); armAudioTimer(); refreshA1(); }
+function a1Stop(){ stopScene(0.6); ytStop(); clearTimeout(audioTimer); refreshA1(); toast('⏹️ נעצר'); }
 function a1Vol(v){ if(!STATE.audio)STATE.audio={}; STATE.audio.vol=+v; save(); const a=bgEl(); if(curMode){ clearInterval(_fadeT); try{a.volume=Math.max(0,Math.min(1,+v));}catch(e){} } const l=$('a1vollab'); if(l) l.textContent=Math.round(v*100)+'%'; }
 function armAudioTimer(){ clearTimeout(audioTimer); const mins=parseInt(a1sel.dur)||30; audioTimer=setTimeout(()=>{ stopScene(2.5); refreshA1(); toast('⏹️ הטיימר הסתיים'); }, mins*60000); }
-function refreshA1(){ const el=$('a1player'); if(el) el.innerHTML=a1PlayerHTML(); }
+
+/* ---- Favorites (saved across sessions) ---- */
+function favs(){ if(!Array.isArray(STATE.favs)) STATE.favs=[]; return STATE.favs; }
+function favHas(type,key){ return favs().some(f=>f.type===type && (f.type==='yt'?f.id:f.u)===key); }
+function favToggle(type,obj){
+  const arr=favs(); const key=type==='yt'?obj.id:obj.u;
+  const i=arr.findIndex(f=>f.type===type && (f.type==='yt'?f.id:f.u)===key);
+  if(i>-1){ arr.splice(i,1); toast('הוסר מהמועדפים'); } else { arr.unshift(Object.assign({type},obj)); toast('⭐ נשמר במועדפים'); }
+  save(); refreshA1();
+}
+function favCur(){ if(cur&&cur.t) favToggle('lib',{t:cur.t,u:cur.u,mode:cur.mode}); }
+function favYTCur(){ if(curYT) favToggle('yt',{t:curYT.t,id:curYT.id,mode:a1sel.mode}); }
+function playFav(i){ const f=favs()[i]; if(!f) return; if(f.type==='yt'){ ytPlay(f.id,f.t); } else { ytStop(); cur={src:'fav',mode:f.mode||a1sel.mode,idx:-1,t:f.t,u:f.u}; curMode=cur.mode; _playUrl(f.u,true,getVol()); armAudioTimer(); refreshA1(); toast('▶️ '+f.t); } }
+
+/* ---- YouTube (embedded iframe — stays inside the app) ---- */
+function ytPlay(id,title){ stopScene(0.3); curYT={id,t:title}; const fr=$('ytframe'); if(fr){ fr.src='https://www.youtube.com/embed/'+id+'?autoplay=1&playsinline=1&rel=0'; } refreshA1(); toast('▶️ YouTube'); }
+function ytStop(){ if(curYT){ const fr=$('ytframe'); if(fr) fr.src=''; curYT=null; } }
+function ytSetKey(){ const k=prompt('הדבק/י מפתח YouTube API חינמי (להשארת ריק - ביטול):', STATE.ytkey||''); if(k!==null){ STATE.ytkey=k.trim(); save(); toast(STATE.ytkey?'מפתח נשמר ✓':'מפתח נמחק'); refreshA1(); } }
+function ytSearch(){
+  const el=$('ytq'); const q=(el&&el.value||'').trim(); if(!q){ toast('כתוב/י מה לחפש'); return; }
+  const box=$('ytresults');
+  if(!STATE.ytkey){ if(box) box.innerHTML='<div class="note">לחיפוש חופשי ביוטיוב צריך מפתח חינמי חד-פעמי. לחצ/י "הוסף מפתח" למטה. (התחנות למעלה עובדות בלי מפתח.)</div>'; return; }
+  const url='https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&videoEmbeddable=true&maxResults=8&q='+encodeURIComponent(q)+'&key='+encodeURIComponent(STATE.ytkey);
+  if(box) box.innerHTML='<div class="note">מחפש…</div>';
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(!d.items){ if(box) box.innerHTML='<div class="note">שגיאת חיפוש — בדוק/י שהמפתח תקין ושה-YouTube Data API מופעל.</div>'; return; }
+    if(box) box.innerHTML=d.items.map(it=>{ const id=it.id.videoId, ti=esc(it.snippet.title);
+      return `<div class="trk"><span class="trk-t" onclick="ytPlay('${id}','${ti.replace(/'/g,"\\'")}')">🔴 ${ti}</span></div>`; }).join('');
+  }).catch(()=>{ if(box) box.innerHTML='<div class="note">שגיאת רשת</div>'; });
+}
+
+/* ---- A1 render helpers ---- */
+function refreshA1(){ const m={a1player:a1PlayerHTML,a1tracks:a1TracksHTML,a1favs:a1FavsHTML,a1ytstations:a1StationsHTML}; for(const id in m){ const el=$(id); if(el) el.innerHTML=m[id](); } }
 function a1PlayerHTML(){
-  const playing=isPlaying();
-  const status = playing
-    ? `<div class="nowbar">🎧 מתנגן: ${esc(curMode)} <span class="eq"><i></i><i></i><i></i><i></i></span></div>`
-    : '';
-  const btn = playing
-    ? `<button class="btn" onclick="a1Stop()">⏹️ עצור</button>`
-    : `<button class="btn" onclick="a1Play()">▶️ נגן עכשיו · ${esc(a1sel.mode)}</button>`;
-  return `${status}${btn}
-    <div class="vol">🔉 <input type="range" min="0" max="1" step="0.05" value="${getVol()}" oninput="a1Vol(this.value)"><span id="a1vollab">${Math.round(getVol()*100)}%</span></div>
-    ${playing?'<div class="playhint">המוזיקה ממשיכה ברקע גם כשתעבור/תעברי לתרגול A4 🎧</div>':'<div class="playhint">מוזיקת 432Hz אמיתית - מתנגנת כמו נגן רגיל (עובד באייפון), גם בלי אינטרנט</div>'}`;
+  const nowLib = cur && cur.t;
+  const title = curYT ? ('🔴 '+esc(curYT.t)) : (nowLib? esc(cur.t) : 'בחר/י מצב ולחצ/י נגן');
+  const on = !!curMode || !!curYT;
+  const isf = curYT ? favHas('yt',curYT.id) : (nowLib? favHas('lib',cur.u):false);
+  const favBtn = on ? `<button class="chip" onclick="${curYT?'favYTCur':'favCur'}()">${isf?'★':'☆'} מועדף</button>` : '';
+  return `<div class="nowbar">${on?'🎧':'🎵'} ${title} ${on?'<span class="eq"><i></i><i></i><i></i><i></i></span>':''}</div>
+    <div class="chips" style="margin:8px 0">
+      ${on?`<button class="btn" style="flex:1" onclick="a1Stop()">⏹️ עצור</button>`:`<button class="btn" style="flex:1" onclick="a1Play()">▶️ נגן · ${esc(a1sel.mode)}</button>`}
+      <button class="chip" onclick="libNext()">⏭️ הבא</button>${favBtn}
+    </div>
+    <div class="vol">🔉 <input type="range" min="0" max="1" step="0.05" value="${getVol()}" oninput="a1Vol(this.value)"><span id="a1vollab">${Math.round(getVol()*100)}%</span></div>`;
+}
+function a1TracksHTML(){
+  const list=LIB[a1sel.mode]||[];
+  return list.map((tr,i)=>{ const on=cur&&cur.src==='lib'&&cur.mode===a1sel.mode&&cur.idx===i; const f=favHas('lib',tr.u);
+    const tj=esc(tr.t).replace(/'/g,"\\'");
+    return `<div class="trk${on?' on':''}"><span class="trk-t" onclick="playLib('${a1sel.mode}',${i})">${on?'▶️ ':''}${esc(tr.t)}</span>
+      <button class="star" onclick="favToggle('lib',{t:'${tj}',u:'${tr.u}',mode:'${a1sel.mode}'})">${f?'★':'☆'}</button></div>`; }).join('');
+}
+function a1FavsHTML(){
+  const arr=favs(); if(!arr.length) return '<div class="note">עדיין אין מועדפים. לחצ/י ☆ ליד רצועה כדי לשמור.</div>';
+  return arr.map((f,i)=>{ const tj=esc(f.t).replace(/'/g,"\\'"); const o=f.type==='yt'?`{type:'yt',id:'${f.id}',t:'${tj}'}`:`{type:'lib',u:'${f.u}',t:'${tj}'}`;
+    return `<div class="trk"><span class="trk-t" onclick="playFav(${i})">${f.type==='yt'?'🔴 ':'▶️ '}${esc(f.t)}</span>
+      <button class="star" onclick="favToggle('${f.type}',${o})">✖</button></div>`; }).join('');
+}
+function a1StationsHTML(){
+  return (YTS[a1sel.mode]||[]).map(s=>`<button class="chip" onclick="ytPlay('${s.id}','${esc(s.t).replace(/'/g,"\\'")}')">▶️ ${esc(s.t)}</button>`).join('');
 }
 const A1MODES={ 'רוגע':'מוזיקה 432Hz לשינה עמוקה - ללא מילים', 'שינה':'מוזיקה 432Hz לשינה עמוקה - ללא מילים',
   'מיקוד':'30 minute morning ambient no vocals', 'אנרגיה':'energizing morning ambient music no vocals' };
 ROUTES.A1=function(){
   view().innerHTML=`
+  <style>
+  .trk{display:flex;align-items:center;justify-content:space-between;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--card-br);border-radius:10px;padding:9px 12px;margin-bottom:6px;font-size:13.5px}
+  .trk.on{background:var(--accent);color:#091029;border-color:transparent;font-weight:700}
+  .trk-t{flex:1;cursor:pointer;overflow:hidden;text-overflow:ellipsis}
+  .trk .star{background:none;border:none;font-size:17px;line-height:1;cursor:pointer;color:var(--accent);flex:0 0 auto}
+  .trk.on .star{color:#091029}
+  .ytbox{margin-top:16px;border-top:1px solid var(--card-br);padding-top:14px}
+  .ytwrap{position:relative;width:100%;padding-top:56.25%;border-radius:12px;overflow:hidden;background:#000;margin-top:8px}
+  .ytwrap iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .ytsearch{display:flex;gap:6px;margin-top:10px}
+  .ytsearch input{flex:1;background:rgba(255,255,255,.06);border:1px solid var(--card-br);border-radius:10px;padding:9px 12px;color:#eef;font-family:inherit;font-size:13px}
+  </style>
   <div class="card">
-    <h2>🎵 מוזיקת רקע <span class="tag">A1</span></h2>
-    <p class="sub">בחר/י מצב ולחץ/י נגן — מוזיקת 432Hz אמיתית, מתנגנת מיד בתוך האפליקציה.</p>
-    <div class="q"><div class="qt">🎯 מצב צליל</div>
+    <h2>🎵 מוזיקה <span class="tag">A1</span></h2>
+    <p class="sub">מוזיקה אמיתית, בלי פרסומות. בחר/י מצב, דלג/י אם לא אהבת ⏭️, ושמור/י מועדפים ⭐</p>
+    <div class="q"><div class="qt">🎯 מצב</div>
       <div class="chips" id="a1mode">${['רוגע','שינה','מיקוד','אנרגיה'].map(m=>`<button class="chip${a1sel.mode===m?' sel':''}" onclick="a1pick('mode','${m}',this)">${m}</button>`).join('')}</div></div>
-    <div class="q"><div class="qt">⏱️ טיימר כיבוי אוטומטי</div>
+    <div class="q"><div class="qt">⏱️ טיימר כיבוי</div>
       <div class="chips" id="a1dur">${['30 min','60 min'].map(d=>`<button class="chip${a1sel.dur===d?' sel':''}" onclick="a1pick('dur','${d}',this)">${d.replace(' min',' דק׳')}</button>`).join('')}</div></div>
     <div id="a1player">${a1PlayerHTML()}</div>
-    <div class="note">🔉 עוצמה מומלצת: נמוכה. הצליל נועד להישאר ברקע המודעות, לא במוקד.</div>
-    <div class="note" style="background:rgba(126,224,166,.08);border-color:rgba(126,224,166,.25);color:var(--good)">✅ ללא פרסומות לחלוטין - מוזיקת 432Hz שמורה בתוך האפליקציה, מתנגנת בלולאה רציפה. עובד באייפון, באנדרואיד ובמחשב, וגם בלי אינטרנט.</div>
+    <div class="qt" style="margin-top:16px">🎼 רצועות · ${esc(a1sel.mode)}</div>
+    <div id="a1tracks">${a1TracksHTML()}</div>
+    <div class="qt" style="margin-top:16px">⭐ המועדפים שלי</div>
+    <div id="a1favs">${a1FavsHTML()}</div>
+    <div class="ytbox">
+      <div class="qt">🔴 YouTube — מקורות נוספים <span class="tag">בתוך האפליקציה</span></div>
+      <div class="ytwrap"><iframe id="ytframe" allow="autoplay; encrypted-media" allowfullscreen src=""></iframe></div>
+      <div class="qt" style="margin-top:10px;font-size:12px;color:var(--ink-dim)">תחנות מוכנות · ${esc(a1sel.mode)} (בלי מפתח)</div>
+      <div class="chips" id="a1ytstations">${a1StationsHTML()}</div>
+      <div class="ytsearch">
+        <input id="ytq" placeholder="חיפוש חופשי ביוטיוב…" value="${esc(YTSEED[a1sel.mode]||'')}">
+        <button class="chip" onclick="ytSearch()">🔍 חפש</button>
+      </div>
+      <div id="ytresults"></div>
+      <div class="note">תחנות מתנגנות מיד בתוך האפליקציה. לחיפוש חופשי צריך מפתח חינמי חד-פעמי: <a href="#" onclick="ytSetKey();return false">➕ הוסף/י מפתח</a> · <a href="https://developers.google.com/youtube/v3/getting-started" target="_blank" rel="noopener">איך משיגים?</a> · ⚠️ ב-YouTube ייתכנו פרסומות.</div>
+    </div>
+    <div class="note" style="background:rgba(126,224,166,.08);border-color:rgba(126,224,166,.25);color:var(--good)">✅ הספרייה: מוזיקה אמיתית (Public Domain / CC0) — בלי פרסומות, נגינה רציפה אוטומטית בין רצועות, עובד באייפון/אנדרואיד/מחשב.</div>
   </div>${FOOTER_TEXT}`;
 };
 function a1pick(k,v,el){
-  a1sel[k]=v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel');
-  if(k==='mode' && isPlaying()) startScene(v,getVol());
-  if(k==='dur'  && isPlaying()) armAudioTimer();
-  refreshA1();
+  a1sel[k]=v;
+  if(el&&el.parentNode){ el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
+  if(k==='dur'){ if(isPlaying()) armAudioTimer(); return; }
+  if(curYT) ytStop();
+  if(cur&&cur.src==='lib') playLib(v,0);
+  ROUTES.A1();
 }
 function a1build(){
   const base=A1MODES[a1sel.mode]||A1MODES['רוגע'];
