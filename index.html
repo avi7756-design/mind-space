@@ -207,7 +207,8 @@
   .link{color:var(--accent);text-decoration:none;font-weight:600}
 
   /* Nav bar (back / home / forward / search) */
-  .navbar{display:flex;gap:7px;margin:0 2px 12px;align-items:center;overflow-x:auto;scrollbar-width:none}
+  .navbar{display:flex;gap:7px;margin:0 -14px 12px;padding:8px 14px;align-items:center;overflow-x:auto;scrollbar-width:none;
+    position:sticky;top:0;z-index:40;background:linear-gradient(180deg,var(--bg) 70%,transparent)}
   .navbar::-webkit-scrollbar{display:none}
   .navbtn{flex:0 0 auto;background:var(--card);border:1px solid var(--card-br);color:var(--ink-dim);
     border-radius:12px;padding:9px 12px;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:.15s}
@@ -244,6 +245,17 @@
     border:1px solid rgba(255,206,107,.25);border-radius:14px;padding:13px;margin-bottom:12px}
   .streakcard .sn{font-size:30px;font-weight:800;color:var(--gold);line-height:1}
   .streakcard .sl{font-size:11.5px;color:var(--ink-dim);line-height:1.5}
+
+  /* Audio player */
+  .vol{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12px;color:var(--ink-dim)}
+  .vol input[type=range]{flex:1;accent-color:#8be0d4;height:4px}
+  .playhint{font-size:11px;color:var(--accent2);margin-top:10px;text-align:center;line-height:1.5}
+  .eq{display:inline-flex;gap:2px;align-items:flex-end;height:13px;margin-inline-start:7px;vertical-align:middle}
+  .eq i{width:3px;background:var(--good);border-radius:2px;animation:eqp 1s ease-in-out infinite}
+  .eq i:nth-child(2){animation-delay:.18s} .eq i:nth-child(3){animation-delay:.36s} .eq i:nth-child(4){animation-delay:.54s}
+  @keyframes eqp{0%,100%{height:4px}50%{height:13px}}
+  .nowbar{display:flex;align-items:center;gap:8px;background:rgba(126,224,166,.1);border:1px solid rgba(126,224,166,.3);
+    border-radius:12px;padding:9px 12px;font-size:12.5px;color:var(--good);font-weight:700;margin-bottom:4px}
 </style>
 </head>
 <body>
@@ -272,7 +284,8 @@
 <footer>
   <div>
     <div class="cmdbar">
-      <button class="codebtn home" onclick="go('M0')">M0</button>
+      <button class="codebtn" onclick="back()" title="אחורה">‹</button>
+      <button class="codebtn home" onclick="go('M0')" title="מסך ראשי">🏠</button>
       <div class="codes" id="codes"></div>
       <input class="cmdinput" id="cmd" placeholder="קוד" maxlength="3"
              onkeydown="if(event.key==='Enter')runCmd()" oninput="this.value=this.value.toUpperCase()">
@@ -290,7 +303,7 @@ const DEFAULT_STATE = {
   profile:{ target:'רוגע', time:'לפי צורך', duration:'5-7 דק', tone:'רגשי-מרגיע', gratitude:'תמיד', set:false },
   current:null,            // latest S1 metrics
   log:[],                  // appendable history
-  audio:{ duration:'30 min', mode:'רוגע', lastQuery:'' },
+  audio:{ duration:'30 min', mode:'רוגע', lastQuery:'', vol:0.72 },
   goals:[]                 // tracked goals
 };
 let STATE = load();
@@ -321,10 +334,17 @@ const A3 = [
     'הסנטר שלי עוצמתי יותר, הוא ממגנט אליי טוב',
     'האור שבי מתחזק האומץ שבי מתגבר ומתחזק גם הוא',
     'הביטחון שקיים בי מתפשט בתוכי ועוטף אותי החוצה כמו איזושהיא הילה של הגנה של שקט',
-    'משהו בי יודע שיהיה בסדר, וגם אם עדיין לא בסדר הדברים הסתדרו' ]}
+    'משהו בי יודע שיהיה בסדר, וגם אם עדיין לא בסדר הדברים הסתדרו' ]},
+  { tags:['#שינה','#מנוחה'], items:[
+    'אני משחרר/ת את כל מה שקרה היום, ונותן/ת לעצמי לנוח',
+    'גופי יודע איך להירגע ולהירדם בקלות ובטבעיות',
+    'עם כל נשיפה אני שוקע/ת עמוק יותר אל תוך שינה רגועה',
+    'אני בטוח/ה, רגוע/ה ומוגן/ת - שינה מתוקה ממתינה לי',
+    'המחשבות נרגעות, הגוף נמס, ואני נרדם/ת בשלווה',
+    'אני מתעורר/ת מחר רענן/ה, מלא/ת אנרגיה ושמחה' ]}
 ];
 // map target -> mantra group index
-const TARGET_GROUP = { 'אנרגיה':0,'שפע':1,'כסף-חרדה':1,'רוגע':2,'שינה':2,'בריאות':2,'מיקוד':0,'ביטחון':3 };
+const TARGET_GROUP = { 'אנרגיה':0,'שפע':1,'כסף-חרדה':1,'רוגע':2,'שינה':4,'בריאות':2,'מיקוד':0,'ביטחון':3 };
 
 /* ============================================================
    HELPERS
@@ -352,10 +372,12 @@ setInterval(tickClock,1000); tickClock();
    ROUTER
 ============================================================ */
 const ROUTES = {};
-let HIST=['M0'], HPTR=0, NAVMODE=false;
+let HIST=['M0'], HPTR=0, NAVMODE=false, CUR='M0';
 function go(code){
   code=(code||'M0').toUpperCase();
+  clearInterval(a4timer); clearInterval(slTimer);   // stop running session timers when leaving (fixes "stuck" navigation). Audio keeps playing in background.
   if(ROUTES[code]){
+    CUR=code;
     if(!NAVMODE){ HIST=HIST.slice(0,HPTR+1); if(HIST[HPTR]!==code){ HIST.push(code); HPTR=HIST.length-1; } }
     const v=view(); v.classList.remove('view'); void v.offsetWidth; v.classList.add('view'); ROUTES[code](); window.scrollTo(0,0);
   }
@@ -377,7 +399,7 @@ function shareApp(){
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('הקישור הועתק ✓ הדבק בוואטסאפ / מייל'),()=>toast(url)); }
   else { toast(url); }
 }
-const CODE_LIST=['IX','S1','A1','A2','A4','A5','G1','F1','F2'];
+const CODE_LIST=['IX','S1','SL','A1','A2','A4','A5','G1','F1','F2'];
 function renderCodes(active){
   $('codes').innerHTML = CODE_LIST.map(c=>`<button class="codebtn${c===active?' home':''}" onclick="go('${c}')">${c}</button>`).join('');
 }
@@ -400,10 +422,11 @@ ROUTES.M0 = function(){
   <div class="grid">
     ${tile('IX','🔍','חיפוש חכם','אמור מה צריך — נבנה לך תוכנית')}
     ${tile('S1','🎛️','הערכת מצב','5 שאלות מהירות — אנרגיה, רוגע, מיקוד')}
+    ${tile('SL','🌙','מדיטציות שינה','מודרך בעברית, ללא פרסומות')}
     ${tile('A4','🧘','היפנוזה עצמית','תסריט מודרך בזמן אמת, ללא אודיו')}
     ${tile('A2','🗣️','מנטרה מיידית','הצהרה מותאמת למצב הנוכחי')}
+    ${tile('A1','🎵','מוזיקת רקע','צלילי 432Hz ללא פרסומות')}
     ${tile('A5','📊','אנליטיקה','מגמות 7 ימים והמלצות')}
-    ${tile('A1','🎵','מוזיקת רקע','מחרוזת חיפוש 432Hz / אמביינט')}
     ${tile('G1','🎯','יעדים ומעקב','קבע יעדים — נעקוב יחד')}
     ${tile('F1','🗂️','כרטיס פרופיל','ההעדפות שלי')}
   </div>
@@ -563,23 +586,152 @@ function clearLog(){ if(confirm('למחוק את כל רשומות היומן?')
 let a1sel={ dur:'30 min', mode:'רוגע' };
 function setAudioMode(m){ a1sel.mode=m; }
 function jumpMantra(t){ A2_OVERRIDE=t; go('A2'); }
+
+/* ---- Hebrew text-to-speech: read any mantra aloud (eyes closed), male/female ---- */
+let ttsGender='female', ttsReading=false;
+function warmVoices(){ try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch(e){} }
+function heVoices(){ try{ return speechSynthesis.getVoices().filter(v=>/he|iw/i.test(v.lang)); }catch(e){ return []; } }
+function pickTtsVoice(){ const vs=heVoices(); if(!vs.length) return null;
+  const male=vs.find(v=>/male|amir|david|דוד|אמיר/i.test(v.name));
+  const female=vs.find(v=>/female|carmit|כרמית|shira/i.test(v.name));
+  if(ttsGender==='male') return male||vs[0];
+  return female||vs[0];
+}
+function ttsSet(g){ ttsGender=g; toast(g==='male'?'🎙️ קול גברי':'🎙️ קול נשי'); document.querySelectorAll('.ttsg').forEach(b=>b.classList.toggle('sel', b.dataset.g===g)); }
+function speak(text){
+  if(!('speechSynthesis' in window)){ toast('המכשיר לא תומך בהקראה'); return; }
+  speechSynthesis.cancel();
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang='he-IL'; u.rate=0.84; u.pitch = ttsGender==='male'?0.55:1.45;   // wide gap so male/female differ even with one device voice
+  const v=pickTtsVoice(); if(v) u.voice=v;
+  u.onend=()=>{ ttsReading=false; }; ttsReading=true;
+  speechSynthesis.speak(u);
+}
+function stopSpeak(){ try{ speechSynthesis.cancel(); }catch(e){} ttsReading=false; }
+function ttsControls(){
+  return `<div class="chips" style="margin-top:10px">
+    <button class="chip ttsg${ttsGender==='female'?' sel':''}" data-g="female" onclick="ttsSet('female')">🎙️ נשי</button>
+    <button class="chip ttsg${ttsGender==='male'?' sel':''}" data-g="male" onclick="ttsSet('male')">🎙️ גברי</button>
+  </div>`;
+}
+let a2Parts=[];
+function speakPart(i){ if(a2Parts[i]) speak(a2Parts[i]); }
+function speakAll(){ if(a2Parts.length) speak(a2Parts.join('. ')); }
+function speakLib(g,i){ try{ speak(A3[g].items[i]); }catch(e){} }
+
+/* ---- Personal voice recording per mantra (IndexedDB, offline) ---- */
+let _recdb=null, recKeys=new Set(), mediaRec=null, recChunks=[], recCurId=null;
+function recId(s){ let h=0; for(let i=0;i<s.length;i++){ h=(h*31+s.charCodeAt(i))>>>0; } return 'r'+h; }
+function openRecDB(){ return new Promise(res=>{ try{ const r=indexedDB.open('hypnoRec',1);
+  r.onupgradeneeded=()=>r.result.createObjectStore('rec'); r.onsuccess=()=>{_recdb=r.result;res(_recdb);}; r.onerror=()=>res(null);
+  }catch(e){ res(null); } }); }
+function loadRecKeys(){ return openRecDB().then(()=>{ if(!_recdb) return; try{ const rq=_recdb.transaction('rec','readonly').objectStore('rec').getAllKeys(); rq.onsuccess=()=>{ recKeys=new Set(rq.result); if(typeof CUR!=='undefined') go(CUR); }; }catch(e){} }); }
+function putRec(id,blob){ return new Promise(res=>{ if(!_recdb)return res(); const tx=_recdb.transaction('rec','readwrite'); tx.objectStore('rec').put(blob,id); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }); }
+function getRec(id){ return new Promise(res=>{ if(!_recdb)return res(null); const rq=_recdb.transaction('rec','readonly').objectStore('rec').get(id); rq.onsuccess=()=>res(rq.result||null); rq.onerror=()=>res(null); }); }
+function recBoxInner(id){ const has=recKeys.has(id);
+  return `<button class="jumpbtn" id="rbtn_${id}" onclick="toggleRec('${id}')">🎤 הקלט</button>`+
+    (has?`<button class="jumpbtn" onclick="playRec('${id}')">🔵 הקול שלי</button><button class="jumpbtn" onclick="delRec('${id}')">🗑️</button>`:''); }
+function recUI(text){ const id=recId(text); return `<span class="recbox" id="rb_${id}">${recBoxInner(id)}</span>`; }
+function refreshRec(id){ const el=$('rb_'+id); if(el) el.innerHTML=recBoxInner(id); }
+async function toggleRec(id){
+  if(mediaRec && mediaRec.state==='recording'){ mediaRec.stop(); return; }
+  if(!navigator.mediaDevices||!window.MediaRecorder){ toast('המכשיר לא תומך בהקלטה'); return; }
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    recChunks=[]; recCurId=id; mediaRec=new MediaRecorder(stream);
+    mediaRec.ondataavailable=e=>{ if(e.data&&e.data.size) recChunks.push(e.data); };
+    mediaRec.onstop=async ()=>{ const blob=new Blob(recChunks,{type:(mediaRec&&mediaRec.mimeType)||'audio/mp4'});
+      await putRec(recCurId,blob); recKeys.add(recCurId); stream.getTracks().forEach(t=>t.stop());
+      refreshRec(recCurId); toast('🎙️ ההקלטה שלך נשמרה'); mediaRec=null; };
+    mediaRec.start();
+    const b=$('rbtn_'+id); if(b){ b.textContent='⏹️ עצור'; b.style.background='var(--warn)'; b.style.color='#fff'; }
+    toast('🎤 מקליט... דבר/י עכשיו, ולחץ/י עצור בסיום');
+  }catch(e){ toast('צריך לאשר גישה למיקרופון'); }
+}
+async function playRec(id){ const blob=await getRec(id); if(!blob){ toast('אין הקלטה'); return; }
+  const url=URL.createObjectURL(blob); const a=new Audio(url); a.play().catch(()=>toast('לא ניתן להשמיע')); a.onended=()=>URL.revokeObjectURL(url); toast('🔵 הקול שלך'); }
+async function delRec(id){ if(!confirm('למחוק את ההקלטה שלך?')) return; if(_recdb){ try{ _recdb.transaction('rec','readwrite').objectStore('rec').delete(id); }catch(e){} } recKeys.delete(id); refreshRec(id); toast('ההקלטה נמחקה'); }
+
+/* ---- In-app ambient sound engine (Web Audio, offline, 432Hz-tuned) ---- */
+const SCENES={
+  'רוגע':  { pads:[[216,.18],[324,.13],[432,.09]], filter:1200, lfo:.06, noise:{type:'white',gain:.022,filter:1300} },
+  'שינה':  { pads:[[174,.18],[261,.14],[348,.09]], filter:900,  lfo:.05, noise:{type:'brown',gain:.16,filter:700} },
+  'מיקוד': { pads:[[324,.14],[486,.09],[648,.06]], filter:1800, lfo:.03, noise:{type:'white',gain:.045,filter:2000} },
+  'אנרגיה':{ pads:[[432,.14],[540,.11],[648,.08]], filter:2300, lfo:.16, noise:null },
+};
+let AC=null, scene=null, curMode=null, audioTimer=null;
+function audioCtx(){ if(!AC) AC=new (window.AudioContext||window.webkitAudioContext)(); if(AC.state==='suspended') AC.resume(); return AC; }
+function noiseBuf(type){ const len=AC.sampleRate*3, buf=AC.createBuffer(1,len,AC.sampleRate), d=buf.getChannelData(0); let last=0;
+  for(let i=0;i<len;i++){ const w=Math.random()*2-1; if(type==='brown'){ last=(last+0.02*w)/1.02; d[i]=last*3.5; } else d[i]=w*0.55; } return buf; }
+function stopScene(fade){
+  if(!scene||!AC){ scene=null; curMode=null; return; }
+  const s=scene; scene=null; curMode=null; const f=fade||0.5;
+  try{ s.master.gain.cancelScheduledValues(AC.currentTime); s.master.gain.setTargetAtTime(0,AC.currentTime,f/3); }catch(e){}
+  setTimeout(()=>{ s.sources.forEach(n=>{try{n.stop();}catch(e){}}); try{s.master.disconnect();}catch(e){} }, f*1000+250);
+}
+function startScene(mode,vol){
+  const ac=audioCtx(); stopScene(0.2);
+  const cfg=SCENES[mode]||SCENES['רוגע'], t=ac.currentTime;
+  const master=ac.createGain(); master.gain.value=0; master.connect(ac.destination);
+  const sources=[];
+  cfg.pads.forEach(([f,g])=>{
+    const o1=ac.createOscillator(); o1.type='sine'; o1.frequency.value=f;
+    const o2=ac.createOscillator(); o2.type='sine'; o2.frequency.value=f; o2.detune.value=7;
+    const lp=ac.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=cfg.filter;
+    const pg=ac.createGain(); pg.gain.value=g;
+    o1.connect(lp); o2.connect(lp); lp.connect(pg); pg.connect(master);
+    const lfo=ac.createOscillator(); lfo.frequency.value=cfg.lfo; const lg=ac.createGain(); lg.gain.value=g*0.5;
+    lfo.connect(lg); lg.connect(pg.gain);
+    o1.start(); o2.start(); lfo.start(); sources.push(o1,o2,lfo);
+  });
+  if(cfg.noise){ const src=ac.createBufferSource(); src.buffer=noiseBuf(cfg.noise.type); src.loop=true;
+    const nf=ac.createBiquadFilter(); nf.type='lowpass'; nf.frequency.value=cfg.noise.filter;
+    const ng=ac.createGain(); ng.gain.value=cfg.noise.gain;
+    src.connect(nf); nf.connect(ng); ng.connect(master); src.start(); sources.push(src); }
+  master.gain.setTargetAtTime(vol!=null?vol:0.6, t, 0.9);
+  scene={master,sources}; curMode=mode;
+}
+function getVol(){ return STATE.audio.vol!=null?STATE.audio.vol:0.72; }
+function isPlaying(){ return !!curMode; }
+function a1Play(){ startScene(a1sel.mode,getVol()); armAudioTimer(); refreshA1(); toast('▶️ מתנגן: '+a1sel.mode); }
+function a1Stop(){ stopScene(0.6); clearTimeout(audioTimer); refreshA1(); toast('⏹️ נעצר'); }
+function a1Vol(v){ STATE.audio.vol=+v; save(); if(scene){ try{ scene.master.gain.setTargetAtTime(+v,AC.currentTime,0.2);}catch(e){} } const l=$('a1vollab'); if(l) l.textContent=Math.round(v*100)+'%'; }
+function armAudioTimer(){ clearTimeout(audioTimer); const mins=parseInt(a1sel.dur)||30; audioTimer=setTimeout(()=>{ stopScene(2.5); refreshA1(); toast('⏹️ הטיימר הסתיים'); }, mins*60000); }
+function refreshA1(){ const el=$('a1player'); if(el) el.innerHTML=a1PlayerHTML(); }
+function a1PlayerHTML(){
+  const playing=isPlaying();
+  const status = playing
+    ? `<div class="nowbar">🎧 מתנגן: ${esc(curMode)} <span class="eq"><i></i><i></i><i></i><i></i></span></div>`
+    : '';
+  const btn = playing
+    ? `<button class="btn" onclick="a1Stop()">⏹️ עצור</button>`
+    : `<button class="btn" onclick="a1Play()">▶️ נגן עכשיו · ${esc(a1sel.mode)}</button>`;
+  return `${status}${btn}
+    <div class="vol">🔉 <input type="range" min="0" max="1" step="0.05" value="${getVol()}" oninput="a1Vol(this.value)"><span id="a1vollab">${Math.round(getVol()*100)}%</span></div>
+    ${playing?'<div class="playhint">המוזיקה ממשיכה ברקע גם כשתעבור/תעברי לתרגול A4 🎧</div>':'<div class="playhint">צלילים נוצרים בזמן אמת במכשיר - עובד גם בלי אינטרנט</div>'}`;
+}
 const A1MODES={ 'רוגע':'מוזיקה 432Hz לשינה עמוקה - ללא מילים', 'שינה':'מוזיקה 432Hz לשינה עמוקה - ללא מילים',
   'מיקוד':'30 minute morning ambient no vocals', 'אנרגיה':'energizing morning ambient music no vocals' };
 ROUTES.A1=function(){
   view().innerHTML=`
   <div class="card">
     <h2>🎵 מוזיקת רקע <span class="tag">A1</span></h2>
-    <p class="sub">בחר/י משך ומצב — נבנה מחרוזת חיפוש מותאמת ל-YouTube.</p>
-    <div class="q"><div class="qt">⏱️ משך</div>
-      <div class="chips" id="a1dur">${['30 min','60 min'].map(d=>`<button class="chip${a1sel.dur===d?' sel':''}" onclick="a1pick('dur','${d}',this)">${d}</button>`).join('')}</div></div>
-    <div class="q"><div class="qt">🎯 מצב</div>
+    <p class="sub">בחר/י מצב ולחץ/י נגן — הצליל מושמע מיד בתוך האפליקציה.</p>
+    <div class="q"><div class="qt">🎯 מצב צליל</div>
       <div class="chips" id="a1mode">${['רוגע','שינה','מיקוד','אנרגיה'].map(m=>`<button class="chip${a1sel.mode===m?' sel':''}" onclick="a1pick('mode','${m}',this)">${m}</button>`).join('')}</div></div>
-    <button class="btn" onclick="a1build()">🔎 צור מחרוזת חיפוש</button>
-    <div id="a1out"></div>
-    <div class="note">🔉 עוצמת שמע מומלצת: נמוכה (מוזיקת רקע). יש לאפשר לצליל להישאר ברקע המודעות, לא במוקד.</div>
+    <div class="q"><div class="qt">⏱️ טיימר כיבוי אוטומטי</div>
+      <div class="chips" id="a1dur">${['30 min','60 min'].map(d=>`<button class="chip${a1sel.dur===d?' sel':''}" onclick="a1pick('dur','${d}',this)">${d.replace(' min',' דק׳')}</button>`).join('')}</div></div>
+    <div id="a1player">${a1PlayerHTML()}</div>
+    <div class="note">🔉 עוצמה מומלצת: נמוכה. הצליל נועד להישאר ברקע המודעות, לא במוקד.</div>
+    <div class="note" style="background:rgba(126,224,166,.08);border-color:rgba(126,224,166,.25);color:var(--good)">✅ ללא פרסומות לחלוטין - הצלילים נוצרים בתוך המכשיר ומתנגנים ברצף מלא, בלי הפרעות שקוטעות את המדיטציה.</div>
   </div>${FOOTER_TEXT}`;
 };
-function a1pick(k,v,el){ a1sel[k]=v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel'); }
+function a1pick(k,v,el){
+  a1sel[k]=v; el.parentNode.querySelectorAll('.chip').forEach(c=>c.classList.remove('sel')); el.classList.add('sel');
+  if(k==='mode' && isPlaying()) startScene(v,getVol());
+  if(k==='dur'  && isPlaying()) armAudioTimer();
+  refreshA1();
+}
 function a1build(){
   const base=A1MODES[a1sel.mode]||A1MODES['רוגע'];
   const min=a1sel.dur.split(' ')[0];
@@ -589,7 +741,7 @@ function a1build(){
   $('a1out').innerHTML=`
     <div class="mantra"><span class="lbl">מחרוזת חיפוש</span>${esc(q)}</div>
     <button class="btn" onclick="copyTxt('${esc(q).replace(/'/g,"\\'")}')">📋 העתק מחרוזת</button>
-    <a class="btn ghost" style="text-decoration:none" href="${yt}" target="_blank">▶️ פתח ב-YouTube</a>`;
+    <a class="btn ghost" style="text-decoration:none" href="${yt}" target="_blank" rel="noopener">▶️ פתח ב-YouTube (לשונית חדשה)</a>`;
 }
 function copyTxt(t){ navigator.clipboard?.writeText(t).then(()=>toast('הועתק ✓'),()=>toast('העתקה נכשלה')); }
 
@@ -616,20 +768,23 @@ ROUTES.A2=function(){
     `גם בלי תוצאה מיידית — אני בדרך הנכונה, ומשהו בי יודע שיהיה בסדר.`
   ];
 
+  a2Parts=[custom[0],custom[1],custom[2],anchor];
   view().innerHTML=`
   <div class="card">
     <h2>🗣️ מנטרה מיידית <span class="tag">A2</span></h2>
     <p class="sub">${c?('מותאם למצב הנוכחי · יעד: '+esc(targetForMantra)):('לפי הפרופיל · יעד: '+esc(targetForMantra))}</p>
 
-    <div class="mantra"><span class="lbl">① הכרת תודה</span>${esc(custom[0])}</div>
-    <div class="mantra"><span class="lbl">② מחויבות לתהליך</span>${esc(custom[1])}</div>
-    <div class="mantra"><span class="lbl">③ יציבות באי-ודאות</span>${esc(custom[2])}</div>
+    <div class="mantra"><span class="lbl">① הכרת תודה <button class="jumpbtn" onclick="speakPart(0)">🔊</button></span>${esc(custom[0])}<div style="margin-top:8px">${recUI(custom[0])}</div></div>
+    <div class="mantra"><span class="lbl">② מחויבות לתהליך <button class="jumpbtn" onclick="speakPart(1)">🔊</button></span>${esc(custom[1])}<div style="margin-top:8px">${recUI(custom[1])}</div></div>
+    <div class="mantra"><span class="lbl">③ יציבות באי-ודאות <button class="jumpbtn" onclick="speakPart(2)">🔊</button></span>${esc(custom[2])}<div style="margin-top:8px">${recUI(custom[2])}</div></div>
+    <div class="mantra"><span class="lbl">⚓ עוגן מהספרייה ${grp.tags.join(' ')} <button class="jumpbtn" onclick="speakPart(3)">🔊</button></span>${esc(anchor)}<div style="margin-top:8px">${recUI(anchor)}</div></div>
 
-    <div class="mantra"><span class="lbl">⚓ עוגן מהספרייה ${grp.tags.join(' ')}</span>${esc(anchor)}</div>
-
-    <button class="btn" onclick="copyTxt('${esc(custom.join(' ')+' '+anchor).replace(/'/g,"\\'")}')">📋 העתק מנטרה מלאה</button>
+    ${ttsControls()}
+    <button class="btn" onclick="speakAll()">🔊 עצום עיניים והקשב</button>
+    <button class="btn ghost" onclick="stopSpeak()">⏹️ עצור הקראה</button>
+    <button class="btn ghost" onclick="copyTxt('${esc(custom.join(' ')+' '+anchor).replace(/'/g,"\\'")}')">📋 העתק מנטרה מלאה</button>
     <button class="btn ghost" onclick="go('A2')">🔄 צור גרסה אחרת</button>
-    <button class="btn ghost" onclick="go('A3')">📚 כל ספריית המנטרות (A3)</button>
+    <button class="btn ghost" onclick="go('A3')">📚 כל הספרייה (A3)</button>
   </div>${FOOTER_TEXT}`;
 };
 
@@ -638,10 +793,12 @@ ROUTES.A3=function(){
   view().innerHTML=`
   <div class="card">
     <h2>📚 ספריית מנטרות <span class="tag">A3</span></h2>
-    <p class="sub">מתוך "כוחו של התת-מודע — מדיטציה והצהרות"</p>
+    <p class="sub">מתוך "כוחו של התת-מודע — מדיטציה והצהרות" · 🔊 לחץ לשמיעה (עצום עיניים)</p>
+    ${ttsControls()}
     <div class="mlist">
-      ${A3.map(g=>g.items.map(it=>`<div class="mi-row"><div class="htag">${g.tags.join(' ')}</div>${esc(it)}</div>`).join('')).join('')}
+      ${A3.map((g,gi)=>g.items.map((it,ii)=>`<div class="mi-row"><div class="htag">${g.tags.join(' ')} <button class="jumpbtn" onclick="speakLib(${gi},${ii})">🔊</button> ${recUI(it)}</div>${esc(it)}</div>`).join('')).join('')}
     </div>
+    <button class="btn ghost" onclick="stopSpeak()">⏹️ עצור הקראה</button>
     <button class="btn ghost" onclick="go('A2')">↩️ חזרה למנטרה מותאמת</button>
   </div>${FOOTER_TEXT}`;
 };
@@ -683,6 +840,9 @@ ROUTES.A4=function(){
 };
 function a4start(){
   const ph=a4phases(); a4i=0;
+  const _t=STATE.profile.target;
+  const amb=(_t==='אנרגיה')?'אנרגיה':(_t==='מיקוד')?'מיקוד':(_t==='שינה')?'שינה':'רוגע';
+  a1sel.mode=amb; startScene(amb,getVol()); armAudioTimer();   // background music during relaxation
   view().innerHTML=`
   <div class="card">
     <div class="player">
@@ -698,10 +858,17 @@ function a4start(){
       <div id="a4breath"></div>
       <div class="phase-text" id="a4text"></div>
       <div class="steps" id="a4dots">${ph.map((_,i)=>`<div class="dot" id="a4d${i}"></div>`).join('')}</div>
-      <button class="btn ghost" style="margin-top:14px" onclick="a4stop()">⏹️ עצור וצא</button>
+      <div class="vol" style="justify-content:center">🔊 <input type="range" min="0" max="1" step="0.05" value="${getVol()}" oninput="a1Vol(this.value)" style="max-width:160px"></div>
+      <button class="jumpbtn" id="a4mus" onclick="a4toggleMusic()" style="margin-top:6px">🎵 מוזיקה פועלת</button>
+      <br><button class="btn ghost" style="margin-top:12px" onclick="a4stop()">⏹️ עצור וצא</button>
     </div>
   </div>${FOOTER_TEXT}`;
   runPhase(ph);
+}
+function a4toggleMusic(){
+  const b=$('a4mus');
+  if(isPlaying()){ a1Stop(); if(b){ b.textContent='🔇 מוזיקה כבויה'; } }
+  else { startScene(a1sel.mode||'רוגע',getVol()); armAudioTimer(); if(b){ b.textContent='🎵 מוזיקה פועלת'; } }
 }
 function runPhase(ph){
   if(a4i>=ph.length){ a4done(); return; }
@@ -726,7 +893,7 @@ function a4done(){
     <button class="btn ghost" onclick="go('M0')">🏠 חזרה לתפריט</button>
   </div>${FOOTER_TEXT}`;
 }
-function a4stop(){ clearInterval(a4timer); toast('התרגול נעצר'); go('M0'); }
+function a4stop(){ clearInterval(a4timer); a1Stop(); toast('התרגול נעצר'); go('M0'); }
 
 /* ============================================================
    A5 — OPERATIONAL ANALYTICS DASHBOARD
@@ -800,9 +967,9 @@ const INTENTS=[
   { key:'sleep', topic:'שינה ומנוחה', icon:'😴',
     kw:['שינה','לישון','להירדם','נדודי','לילה','עייפ','מנוחה','לנוח','נרדם'],
     plan:[
-      {t:'מוזיקת רקע 432Hz לשינה',   s:'עוצמה נמוכה, ללא מילים', code:'A1', onc:"setAudioMode('שינה');go('A1')"},
-      {t:'תרגול הרגעה מודרך (A4)',     s:'נשימות עם נשיפה מאריכה', code:'A4', onc:"go('A4')"},
-      {t:'מנטרת רוגע לסיום היום',      s:'חזרה פנימית שקטה',      code:'A2', onc:"jumpMantra('רוגע')"} ]},
+      {t:'מדיטציית שינה מודרכת',      s:'בעברית, ללא פרסומות', code:'SL', onc:"go('SL')"},
+      {t:'צליל רקע 432Hz לשינה',      s:'מתנגן במכשיר, נקי',   code:'A1', onc:"setAudioMode('שינה');go('A1')"},
+      {t:'הצהרת שינה מרגיעה',         s:'חזרה פנימית שקטה',    code:'A2', onc:"jumpMantra('שינה')"} ]},
   { key:'morning', topic:'הצהרת בוקר ופתיחת יום', icon:'🌅',
     kw:['בוקר','להתעורר','התעורר','פתיחת יום','קימה','הצהרת בוקר','start','להתחיל יום'],
     plan:[
@@ -953,11 +1120,115 @@ function addGoalFromIntent(key){
 }
 
 /* ============================================================
+   SL — HEBREW SLEEP MEDITATIONS (ad-free, text + ambient synth)
+============================================================ */
+const SLEEP_MEDS=[
+  { id:0, name:'סריקת גוף לשינה', icon:'🛏️', desc:'הרפיה הדרגתית מכף רגל עד ראש', phases:[
+    {n:'הכנה', s:40, breath:true, t:'שכב/י בנוחות, עצום/י עיניים.\nנשימה עמוקה דרך האף... ונשיפה ארוכה דרך הפה.\nתן/י לגוף לשקוע אל המזרן.'},
+    {n:'רגליים', s:45, breath:false, t:'הבא/י תשומת לב לכפות הרגליים - כבדות, רכות, משוחררות.\nהשוקיים, הברכיים, הירכיים נמסים ונרגעים.'},
+    {n:'מרכז הגוף', s:45, breath:false, t:'הבטן עולה ויורדת לאט.\nהחזה מתרחב בעדינות, הכתפיים נשמטות מטה.\nהזרועות כבדות לצדי הגוף.'},
+    {n:'ראש ופנים', s:45, breath:false, t:'הצוואר משתחרר... הלסת רכה...\nהמצח חלק, סביב העיניים נינוח.\nכל הפנים שלך רגועות לגמרי.'},
+    {n:'שקיעה', s:40, breath:true, t:'הגוף כולו כבד, חמים ובטוח.\nעם כל נשיפה - שוקע/ת עמוק יותר.'},
+    {n:'הרדמות', s:30, breath:false, t:'אין מה לעשות עכשיו, רק לשקוע.\nתן/י למחשבות להתפוגג... לילה טוב 🌙'} ]},
+  { id:1, name:'נשימת 4-7-8', icon:'🌬️', desc:'טכניקת הרדמות מהירה במחזורי נשימה', phases:[
+    {n:'הסבר', s:20, breath:false, t:'נשום/י פנימה 4 שניות, החזק/י 7, ונשוף/י לאט 8.\nנעשה זאת יחד, בעיניים עצומות.'},
+    {n:'מחזור 1', s:19, breath:true, t:'שאיפה 1-2-3-4... החזקה 1-2-3-4-5-6-7... נשיפה ארוכה 1-2-3-4-5-6-7-8.'},
+    {n:'מחזור 2', s:19, breath:true, t:'שוב - שאיפה רכה דרך האף... החזקה נינוחה... נשיפה איטית דרך הפה.'},
+    {n:'מחזור 3', s:19, breath:true, t:'הגוף מתחיל להיות כבד... שאיפה... החזקה... נשיפה משחררת.'},
+    {n:'מחזור 4', s:19, breath:true, t:'עוד נשימה אחת עמוקה... ותן/י לגוף להמשיך לבד.'},
+    {n:'מנוחה', s:25, breath:false, t:'עכשיו נשום/י טבעי לגמרי.\nרגוע/ה, כבד/ה, מוכן/ה לשינה 🌙'} ]},
+  { id:2, name:'הרפיה + הצהרות שינה', icon:'✨', desc:'הרגעה ולאחריה הצהרות מרגיעות', phases:[
+    {n:'הרפיה', s:50, breath:true, t:'נשימות איטיות. עם כל נשיפה - משחרר/ת את היום שחלף.\nאין לאן למהר, אין מה לפתור עכשיו.'},
+    {n:'הצהרה', s:50, breath:false, mantra:'אני משחרר/ת את כל מה שקרה היום, ונותן/ת לעצמי לנוח.', t:'חזור/חזרי בשקט, פנימה:'},
+    {n:'הצהרה', s:50, breath:false, mantra:'גופי יודע איך להירגע ולהירדם בקלות ובטבעיות.', t:'בשקט, בלב:'},
+    {n:'הצהרה', s:50, breath:false, mantra:'עם כל נשיפה אני שוקע/ת עמוק יותר אל תוך שינה רגועה.', t:'הרגש/י את המילים:'},
+    {n:'עיגון', s:40, breath:false, mantra:'אני בטוח/ה, רגוע/ה ומוגן/ת - שינה מתוקה ממתינה לי.', t:'ולסיום:'},
+    {n:'הרדמות', s:30, breath:false, t:'תן/י למילים ולגוף לעשות את שלהם.\nלילה טוב, מחר תתעורר/י רענן/ה 🌙'} ]},
+];
+let slTimer=null, slI=0, slMedIdx=0, slVoice='hugo';
+const NARRATION={
+  hugo:'https://d8j0ntlcm91z4.cloudfront.net/user_3F0W79QTYmd2Dr5jPN0DEyDSFQB/hf_20260627_093014_654c141d-41d4-4e18-a5a7-8c9614c6ac5a.mp3',
+  maya:'https://d8j0ntlcm91z4.cloudfront.net/user_3F0W79QTYmd2Dr5jPN0DEyDSFQB/hf_20260627_092900_9cfaf833-9b2a-499b-b2b6-d35e51dabcb8.mp3'
+};
+function slPickVoice(v){ slVoice=v; go('SL'); }
+ROUTES.SL=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🌙 מדיטציות שינה <span class="tag">SL</span></h2>
+    <p class="sub">מודרך בעברית, ללא פרסומות.</p>
+
+    <div class="nowbar" style="background:rgba(124,156,255,.1);border-color:rgba(124,156,255,.3);color:var(--accent)">🎧 מדיטציה בקול אמיתי (קריינות בעברית)</div>
+    <div class="chips" style="margin-top:8px">
+      <button class="chip${slVoice==='hugo'?' sel':''}" onclick="slPickVoice('hugo')">🎙️ קול גברי</button>
+      <button class="chip${slVoice==='maya'?' sel':''}" onclick="slPickVoice('maya')">🎙️ קול נשי</button>
+    </div>
+    <audio id="slnarr" controls preload="none" style="width:100%;margin-top:10px" src="${NARRATION[slVoice]}"></audio>
+    <div class="playhint">▶️ לחץ/י נגן · מתנגן גם במסך נעול · להוספת צליל רקע רך:
+      <button class="jumpbtn" onclick="startScene('שינה',0.4);toast('🌊 צליל רקע פועל')">🌊 רקע</button></div>
+
+    <div class="nowbar" style="background:rgba(255,206,107,.1);border-color:rgba(255,206,107,.3);color:var(--gold);margin-top:12px">🎤 המדיטציה בקול שלך</div>
+    <div style="margin-top:8px">${recUI('SLEEP_PERSONAL_MEDITATION')}</div>
+    <div class="playhint">הקלט/י מדיטציית שינה משלך - לשמוע את הקול שלך לפני השינה עוצמתי במיוחד.</div>
+
+    <div style="font-size:11px;color:var(--ink-faint);margin:18px 0 8px">או מדיטציות טקסט מודרכות:</div>
+    ${SLEEP_MEDS.map(m=>`<button class="tile" style="width:100%;margin-bottom:8px" onclick="slStart(${m.id})">
+        <div class="ic">${m.icon}</div><div class="nm">${esc(m.name)}</div><div class="ds">${esc(m.desc)}</div></button>`).join('')}
+    <div class="note">💡 מומלץ במיטה. הקריינות והטקסט מתקדמים לבד עד ההרדמות.</div>
+  </div>${FOOTER_TEXT}`;
+};
+function slStart(idx){
+  slMedIdx=idx; slI=0; const med=SLEEP_MEDS[idx];
+  a1sel.mode='שינה'; startScene('שינה',0.55); armAudioTimer();   // ad-free ambient under the meditation
+  view().innerHTML=`
+  <div class="card">
+    <div class="player">
+      <div class="phase-name" id="slname"></div>
+      <div class="ring"><svg width="120" height="120">
+        <defs><linearGradient id="grads" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c9cff"/><stop offset="1" stop-color="#8be0d4"/></linearGradient></defs>
+        <circle class="rc-bg" cx="60" cy="60" r="52" fill="none" stroke-width="7"/>
+        <circle class="rc-fg" id="slring" cx="60" cy="60" r="52" fill="none" stroke-width="7" stroke="url(#grads)" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="0"/>
+      </svg><div class="rt" id="sltime">0</div></div>
+      <div id="slbreath"></div>
+      <div class="phase-text" id="sltext"></div>
+      <div class="steps" id="sldots">${med.phases.map((_,i)=>`<div class="dot" id="sld${i}"></div>`).join('')}</div>
+      <div class="playhint">🎧 צליל הרקע ממשיך גם בסיום, כדי שתירדם/י ברוגע</div>
+      <button class="btn ghost" style="margin-top:12px" onclick="slStop()">⏹️ עצור</button>
+    </div>
+  </div>${FOOTER_TEXT}`;
+  slRunPhase();
+}
+function slRunPhase(){
+  const ph=SLEEP_MEDS[slMedIdx].phases;
+  if(slI>=ph.length){ slDone(); return; }
+  const p=ph[slI], R=327; let left=p.s;
+  $('slname').textContent='שלב '+(slI+1)+'/'+ph.length+' · '+p.n;
+  $('sltext').innerHTML = p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>');
+  $('slbreath').innerHTML = p.breath?'<div class="breath"></div>':'';
+  ph.forEach((_,i)=>$('sld'+i).classList.toggle('on',i<=slI));
+  const upd=()=>{ $('sltime').textContent=left; $('slring').style.strokeDashoffset=R*(1-left/p.s); };
+  upd(); clearInterval(slTimer);
+  slTimer=setInterval(()=>{ left--; if(left<0){ slI++; slRunPhase(); } else upd(); },1000);
+}
+function slDone(){
+  clearInterval(slTimer);
+  view().innerHTML=`
+  <div class="card">
+    <h2>🌙 לילה טוב</h2>
+    <p class="sub">צליל הרקע ממשיך לנגן ברכות</p>
+    <div class="mantra" style="text-align:center">תן/י לעצמך לשקוע.<br>אין צורך לעשות דבר נוסף.</div>
+    <button class="btn ghost" onclick="a1Stop();go('M0')">⏹️ עצור צליל וחזרה לתפריט</button>
+  </div>${FOOTER_TEXT}`;
+}
+function slStop(){ clearInterval(slTimer); a1Stop(); toast('המדיטציה נעצרה'); go('M0'); }
+
+/* ============================================================
    BOOT
 ============================================================ */
 renderCodes('M0');
 go('M0');
 updateNav();
+warmVoices();
+loadRecKeys();
 </script>
 <script>if("serviceWorker" in navigator){addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));}</script>
 </body>
