@@ -304,7 +304,8 @@ const DEFAULT_STATE = {
   current:null,            // latest S1 metrics
   log:[],                  // appendable history
   audio:{ duration:'30 min', mode:'רוגע', lastQuery:'', vol:0.72 },
-  goals:[]                 // tracked goals
+  goals:[],                // tracked goals
+  mrate:{}                 // ML youtube star ratings
 };
 let STATE = load();
 function load(){ try{ return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(localStorage.getItem(LS_KEY))||{}); }catch(e){ return JSON.parse(JSON.stringify(DEFAULT_STATE)); } }
@@ -399,7 +400,7 @@ function shareApp(){
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('הקישור הועתק ✓ הדבק בוואטסאפ / מייל'),()=>toast(url)); }
   else { toast(url); }
 }
-const CODE_LIST=['IX','S1','SL','A1','A2','A4','A5','G1','F1','F2'];
+const CODE_LIST=['IX','S1','SL','GM','A1','ML','A2','A4','A5','G1','F1','F2'];
 function renderCodes(active){
   $('codes').innerHTML = CODE_LIST.map(c=>`<button class="codebtn${c===active?' home':''}" onclick="go('${c}')">${c}</button>`).join('');
 }
@@ -425,7 +426,9 @@ ROUTES.M0 = function(){
     ${tile('SL','🌙','מדיטציות שינה','מודרך בעברית, ללא פרסומות')}
     ${tile('A4','🧘','היפנוזה עצמית','תסריט מודרך בזמן אמת, ללא אודיו')}
     ${tile('A2','🗣️','מנטרה מיידית','הצהרה מותאמת למצב הנוכחי')}
-    ${tile('A1','🎵','מוזיקת רקע','צלילי 432Hz ללא פרסומות')}
+    ${tile('A1','🎵','מוזיקה','ספרייה אמיתית + יוטיוב, בלי פרסומות')}
+    ${tile('GM','🧘','מדיטציות מודרכות','בוקר · יום · שינה — בעברית')}
+    ${tile('ML','⭐','ספריית יוטיוב','מדיטציות מדורגות בכוכבים')}
     ${tile('A5','📊','אנליטיקה','מגמות 7 ימים והמלצות')}
     ${tile('G1','🎯','יעדים ומעקב','קבע יעדים — נעקוב יחד')}
     ${tile('F1','🗂️','כרטיס פרופיל','ההעדפות שלי')}
@@ -1328,6 +1331,130 @@ function slDone(){
   </div>${FOOTER_TEXT}`;
 }
 function slStop(){ clearInterval(slTimer); a1Stop(); toast('המדיטציה נעצרה'); go('M0'); }
+
+/* ============================================================
+   GM — GUIDED MEDITATIONS (Hebrew, voice+text, real library music)
+============================================================ */
+const GUIDED={
+  morning:{ name:'השכמת בוקר', icon:'☀️', ambient:'אנרגיה', endTitle:'בוקר טוב ☀️', endText:'קח/י את הכוונה הזו איתך אל תוך היום.',
+    phases:[
+      {n:'פתיחה', s:30, breath:true, t:'שב/י או עמוד/עמדי זקוף. נשימה עמוקה פנימה... ונשיפה משחררת.\nהבוקר הזה חדש, ואיתו הזדמנות חדשה.'},
+      {n:'הצהרה', s:35, breath:false, mantra:'אני מתעורר/ת מלא/ה באנרגיה, בריאות ושמחה. הבוקר מביא איתו הזדמנויות חדשות לשפע ולהצלחה.', t:'חזור/חזרי פנימה:'},
+      {n:'הצהרה', s:35, breath:false, mantra:'התת-מודע שלי פועל למעני כל הזמן, ומושך אליי טוב, בריאות ושגשוג.', t:'בלב:'},
+      {n:'הצהרה', s:35, breath:false, mantra:'אני בטוח/ה בעצמי, ערכי גבוה, ואני ראוי/ה לכל הטוב שבא אליי היום.', t:'הרגש/י:'},
+      {n:'כוונה', s:30, breath:false, mantra:'היום הזה נפתח בכוונה ברורה: אני בוחר/ת מחשבות חיוביות שבונות את המציאות שלי.', t:'ולסיום:'}
+    ]},
+  day:{ name:'מיקוד למהלך היום', icon:'🎯', ambient:'מיקוד', endTitle:'קדימה 🎯', endText:'חזרה למשימה - ממוקד/ת ורגוע/ה.',
+    phases:[
+      {n:'איפוס', s:25, breath:true, t:'עצור/עצרי לרגע. שלוש נשימות עמוקות לניקוי הראש.'},
+      {n:'הצהרה', s:30, breath:false, mantra:'אני ממוקד/ת, יצירתי/ת ויעיל/ה. כל משימה שאני ניגש/ת אליה זורמת בקלות ובהצלחה.', t:'פנימה:'},
+      {n:'הצהרה', s:30, breath:false, mantra:'האנרגיה שלי גבוהה ויציבה לאורך כל היום, וגופי בריא ומלא חיוניות.', t:'בלב:'},
+      {n:'הצהרה', s:30, breath:false, mantra:'אני מושך/ת אליי שפע, הזדמנויות ושיתופי פעולה מוצלחים.', t:'הרגש/י:'},
+      {n:'הצהרה', s:30, breath:false, mantra:'אני בטוח/ה ביכולותיי, והתת-מודע שלי מספק לי פתרונות ורעיונות בדיוק כשאני זקוק/ה להם.', t:'ועוד:'},
+      {n:'עיגון', s:25, breath:false, mantra:'אני נושם/ת עמוק, נשאר/ת רגוע/ה וממוקד/ת גם תחת לחץ.', t:'ולסיום:'}
+    ]}
+};
+let gmTimer=null, gmI=0, gmKey=null;
+ROUTES.GM=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🧘 מדיטציות מודרכות <span class="tag">GM</span></h2>
+    <p class="sub">תרגול קולי-טקסטואלי בעברית, ללא פרסומות, עם צליל רקע.</p>
+    <button class="tile" style="width:100%;margin-bottom:8px" onclick="gmStart('morning')"><div class="ic">☀️</div><div class="nm">השכמת בוקר</div><div class="ds">4 הצהרות פתיחת יום מהספרייה שלך</div></button>
+    <button class="tile" style="width:100%;margin-bottom:8px" onclick="gmStart('day')"><div class="ic">🎯</div><div class="nm">מיקוד למהלך היום</div><div class="ds">5 הצהרות מיקוד ועבודה</div></button>
+    <button class="tile" style="width:100%;margin-bottom:8px" onclick="go('SL')"><div class="ic">🌙</div><div class="nm">הכנה לשינה</div><div class="ds">3 מדיטציות + קריינות קולית</div></button>
+    <div class="nowbar" style="background:rgba(255,206,107,.1);border-color:rgba(255,206,107,.3);color:var(--gold);margin-top:12px">📺 מעדיף/ה מיוטיוב?</div>
+    <button class="btn" style="margin-top:8px" onclick="go('ML')">⭐ ספריית מדיטציות מדורגת (ML)</button>
+  </div>${FOOTER_TEXT}`;
+};
+function gmStart(key){
+  gmKey=key; gmI=0; const med=GUIDED[key];
+  a1sel.mode=med.ambient; startScene(med.ambient,getVol()); armAudioTimer();
+  view().innerHTML=`
+  <div class="card"><div class="player">
+      <div class="phase-name" id="gmname"></div>
+      <div class="ring"><svg width="120" height="120">
+        <defs><linearGradient id="gradg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7c9cff"/><stop offset="1" stop-color="#8be0d4"/></linearGradient></defs>
+        <circle class="rc-bg" cx="60" cy="60" r="52" fill="none" stroke-width="7"/>
+        <circle class="rc-fg" id="gmring" cx="60" cy="60" r="52" fill="none" stroke-width="7" stroke="url(#gradg)" stroke-linecap="round" stroke-dasharray="327" stroke-dashoffset="0"/>
+      </svg><div class="rt" id="gmtime">0</div></div>
+      <div id="gmbreath"></div>
+      <div class="phase-text" id="gmtext"></div>
+      <div class="steps" id="gmdots">${med.phases.map((_,i)=>`<div class="dot" id="gmd${i}"></div>`).join('')}</div>
+      <button class="jumpbtn" id="gmmus" onclick="a4toggleMusic()" style="margin-top:6px">🎵 מוזיקה פועלת</button>
+      <br><button class="btn ghost" style="margin-top:12px" onclick="gmStop()">⏹️ עצור וצא</button>
+  </div></div>${FOOTER_TEXT}`;
+  gmRun();
+}
+function gmRun(){
+  const ph=GUIDED[gmKey].phases;
+  if(gmI>=ph.length){ gmDone(); return; }
+  const p=ph[gmI], R=327; let left=p.s;
+  $('gmname').textContent='שלב '+(gmI+1)+'/'+ph.length+' · '+p.n;
+  $('gmtext').innerHTML = p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>');
+  $('gmbreath').innerHTML = p.breath?'<div class="breath"></div>':'';
+  ph.forEach((_,i)=>$('gmd'+i).classList.toggle('on',i<=gmI));
+  const upd=()=>{ $('gmtime').textContent=left; $('gmring').style.strokeDashoffset=R*(1-left/p.s); };
+  upd(); clearInterval(gmTimer);
+  gmTimer=setInterval(()=>{ left--; if(left<0){ gmI++; gmRun(); } else upd(); },1000);
+}
+function gmDone(){
+  clearInterval(gmTimer); const med=GUIDED[gmKey];
+  view().innerHTML=`<div class="card">
+    <h2>${med.endTitle}</h2>
+    <div class="mantra" style="text-align:center">${esc(med.endText)}</div>
+    <button class="btn" onclick="a1Stop();go('GM')">⏹️ עצור צליל וחזרה</button>
+    <button class="btn ghost" onclick="go('M0')">🏠 תפריט ראשי</button>
+  </div>${FOOTER_TEXT}`;
+}
+function gmStop(){ clearInterval(gmTimer); a1Stop(); toast('התרגול נעצר'); go('GM'); }
+
+/* ============================================================
+   ML — RATED YOUTUBE MEDITATION CATALOG (real links, star ratings)
+============================================================ */
+const MCAT=[
+  {id:'s1', cat:'שינה', title:'מדיטציה מודרכת לשינה עמוקה והירדמות ב-10 דקות', dur:'10 דק׳', rec:5, url:'https://www.youtube.com/watch?v=1q2Lrpv4gQA'},
+  {id:'s2', cat:'שינה', title:'מדיטציה לשינה עמוקה ולהירדמות מהירה – דמיון מודרך', dur:'~30 דק׳', rec:5, url:'https://www.youtube.com/watch?v=gZQVIV3myC8'},
+  {id:'s3', cat:'שינה', title:'מדיטציה לפני השינה ותכנות תת-המודע', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=v_JYjbAQuo0'},
+  {id:'s4', cat:'שינה', title:'מדיטציה לפני השינה אחרי יום קשה', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=tFQmO2Lj-Po'},
+  {id:'b1', cat:'בוקר', title:'הצהרות חיוביות לבוקר', dur:'בינוני', rec:5, url:'https://www.youtube.com/watch?v=9X9q_Y6K0zs'},
+  {id:'b2', cat:'בוקר', title:'הצהרות מעצימות לבוקר מושלם', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=gSfWnwrKly4'},
+  {id:'b3', cat:'בוקר', title:'הצהרות חיוביות ליום טוב', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=YWUSoo8Hoh0'},
+  {id:'b4', cat:'בוקר', title:'הצהרות הודיה – להטמעת אופטימיות ואהבה', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=Lg_mKTTGJsg'},
+  {id:'f1', cat:'שפע', title:'הצהרות חיוביות לאושר ולשינה – להטמעה בתת-המודע', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=QV6Ko8YoZw8'},
+  {id:'r1', cat:'רוגע', title:'מדיטציה עמוקה להרגעה (המאמנת ליה)', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=zU8KkxdKvj4'},
+  {id:'u1', cat:'מוזיקה', title:'8 שעות מוזיקה מרגיעה לשינה עמוקה', dur:'8 שעות', rec:5, url:'https://www.youtube.com/watch?v=6Kmk2JODqjk'},
+  {id:'u2', cat:'מוזיקה', title:'מוזיקה מרגיעה עם צלילי טבע לשינה עמוקה', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=1QpwMjeaCFo'},
+  {id:'u3', cat:'מוזיקה', title:'10 שעות מוזיקה מרגיעה לשינה', dur:'10 שעות', rec:4, url:'https://www.youtube.com/watch?v=WuUYKUNHDBk'}
+];
+let mlFilter='הכל';
+function mStars(id){ return (STATE.mrate&&STATE.mrate[id])||0; }
+function rateM(id,n){ if(!STATE.mrate)STATE.mrate={}; STATE.mrate[id]=(STATE.mrate[id]===n?0:n); save(); go('ML'); }
+function starRow(id){ const u=mStars(id);
+  return [1,2,3,4,5].map(n=>`<span onclick="rateM('${id}',${n})" style="cursor:pointer;font-size:17px;color:${n<=u?'var(--gold)':'var(--ink-faint)'}">★</span>`).join(''); }
+ROUTES.ML=function(){
+  const cats=['הכל',...[...new Set(MCAT.map(m=>m.cat))]];
+  let list=MCAT.filter(m=>mlFilter==='הכל'||m.cat===mlFilter);
+  list=list.slice().sort((a,b)=> (mStars(b.id)-mStars(a.id)) || (b.rec-a.rec) );
+  view().innerHTML=`
+  <div class="card">
+    <h2>⭐ ספריית מדיטציות מדורגת <span class="tag">ML</span></h2>
+    <p class="sub">קישורי יוטיוב אמיתיים. דרג/י בכוכבים - המועדפים שלך יעלו לראש הרשימה.</p>
+    <div class="chips">${cats.map(c=>`<button class="chip${mlFilter===c?' sel':''}" onclick="mlSet('${c}')">${c}</button>`).join('')}</div>
+    <div class="mlist" style="margin-top:6px">
+      ${list.map(m=>`<div class="mi-row">
+        <div class="htag" style="display:flex;align-items:center;gap:6px">#${m.cat} · ${esc(m.dur)} ${mStars(m.id)?'':'<span style="color:var(--gold)">★מומלץ '+m.rec+'</span>'}</div>
+        <div style="font-size:13px;line-height:1.5;margin:2px 0 5px">${esc(m.title)}</div>
+        <div style="display:flex;align-items:center;justify-content:space-between">
+          <div>${starRow(m.id)}</div>
+          <a class="jumpbtn" style="text-decoration:none" href="${m.url}" target="_blank" rel="noopener">▶️ פתח ביוטיוב</a>
+        </div>
+      </div>`).join('')}
+    </div>
+    <div class="note">🔊 קישורי יוטיוב חיצוניים (עשויים לכלול פרסומות). לרצף מלא ללא פרסומות - השתמש/י בתרגולים המודרכים (GM) או בספריית המוזיקה (A1).</div>
+  </div>${FOOTER_TEXT}`;
+};
+function mlSet(c){ mlFilter=c; go('ML'); }
 
 /* ============================================================
    BOOT
