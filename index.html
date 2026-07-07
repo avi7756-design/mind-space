@@ -697,13 +697,27 @@ const YTSEED={ 'רוגע':'calm ambient relaxing music','שינה':'sleep music 
 let bgAudio=null, curMode=null, cur=null, curYT=null, audioTimer=null, _fadeT=null;
 function bgEl(){
   if(!bgAudio){
-    bgAudio=document.getElementById('bgaudio');
-    if(!bgAudio){ bgAudio=document.createElement('audio'); bgAudio.id='bgaudio'; bgAudio.preload='auto';
-      bgAudio.setAttribute('playsinline',''); bgAudio.setAttribute('webkit-playsinline',''); document.body.appendChild(bgAudio);
-      bgAudio.addEventListener('ended',()=>{ if(cur && cur.src==='lib') libNext(); }); }
+    bgAudio=document.getElementById('bgvid');
+    if(!bgAudio){
+      // <video> (not <audio>) — plays through the iOS silent switch; audio-only source is fine.
+      bgAudio=document.createElement('video'); bgAudio.id='bgvid'; bgAudio.preload='auto'; bgAudio.muted=false;
+      bgAudio.setAttribute('playsinline',''); bgAudio.setAttribute('webkit-playsinline','');
+      bgAudio.style.cssText='position:fixed;left:0;bottom:0;width:1px;height:1px;opacity:0;pointer-events:none;z-index:-1';
+      document.body.appendChild(bgAudio);
+      bgAudio.addEventListener('ended',()=>{ if(cur && cur.src==='lib') libNext(); });
+      if('mediaSession' in navigator){ try{
+        navigator.mediaSession.setActionHandler('play',()=>{ bgAudio.play(); });
+        navigator.mediaSession.setActionHandler('pause',()=>{ bgAudio.pause(); });
+        navigator.mediaSession.setActionHandler('nexttrack',()=>libNext());
+        navigator.mediaSession.setActionHandler('previoustrack',()=>{ if(cur&&cur.src==='lib') playLib(cur.mode,cur.idx-1); });
+      }catch(e){} }
+    }
   }
   return bgAudio;
 }
+function _media(title,artist){ if('mediaSession' in navigator){ try{
+  navigator.mediaSession.metadata=new MediaMetadata({title:title||'מרחב התת-מודע',artist:artist||'מוזיקת רקע',album:'מרחב התת-מודע',artwork:[{src:'./icon-512.png',sizes:'512x512',type:'image/png'}]});
+}catch(e){} } }
 function _fadeTo(target,ms,done){
   const a=bgEl(); clearInterval(_fadeT); const steps=Math.max(1,Math.round(ms/40)); let i=0; const from=a.volume;
   _fadeT=setInterval(()=>{ i++; const k=i/steps; a.volume=Math.max(0,Math.min(1,from+(target-from)*k)); if(i>=steps){ clearInterval(_fadeT); if(done)done(); } },40);
@@ -719,7 +733,7 @@ function playLib(mode,idx,vol){
   const list=LIB[mode]; if(!list||!list.length) return;
   const n=list.length; idx=((idx%n)+n)%n; const tr=list[idx];
   cur={src:'lib',mode,idx,t:tr.t,u:tr.u}; curMode=mode;
-  _playUrl(tr.u,false,vol); armAudioTimer(); refreshA1(); toast('▶️ '+tr.t);
+  _playUrl(tr.u,false,vol); _media(tr.t,mode); armAudioTimer(); refreshA1(); toast('▶️ '+tr.t);
 }
 function libNext(){ if(cur&&cur.src==='lib') playLib(cur.mode,cur.idx+1); else playLib(a1sel.mode,0); }
 function startScene(mode,vol){ playLib(mode,0,vol); }   // back-compat: A4/SL background music
@@ -742,7 +756,7 @@ function favToggle(type,obj){
 }
 function favCur(){ if(cur&&cur.t) favToggle('lib',{t:cur.t,u:cur.u,mode:cur.mode}); }
 function favYTCur(){ if(curYT) favToggle('yt',{t:curYT.t,id:curYT.id,mode:a1sel.mode}); }
-function playFav(i){ const f=favs()[i]; if(!f) return; if(f.type==='yt'){ ytPlay(f.id,f.t); } else { ytStop(); cur={src:'fav',mode:f.mode||a1sel.mode,idx:-1,t:f.t,u:f.u}; curMode=cur.mode; _playUrl(f.u,true,getVol()); armAudioTimer(); refreshA1(); toast('▶️ '+f.t); } }
+function playFav(i){ const f=favs()[i]; if(!f) return; if(f.type==='yt'){ ytPlay(f.id,f.t); } else { ytStop(); cur={src:'fav',mode:f.mode||a1sel.mode,idx:-1,t:f.t,u:f.u}; curMode=cur.mode; _playUrl(f.u,true,getVol()); _media(f.t,cur.mode); armAudioTimer(); refreshA1(); toast('▶️ '+f.t); } }
 
 /* ---- YouTube (embedded iframe — stays inside the app) ---- */
 function ytPlay(id,title){ stopScene(0.3); curYT={id,t:title}; const fr=$('ytframe'); if(fr){ fr.src='https://www.youtube.com/embed/'+id+'?autoplay=1&playsinline=1&rel=0'; } refreshA1(); toast('▶️ YouTube'); }
