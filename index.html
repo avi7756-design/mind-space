@@ -264,7 +264,7 @@
     <div class="logo">🌀</div>
     <div>
       <h1>מרחב התת-מודע</h1>
-      <p>לוח אימון מנטלי · v1.0</p>
+      <p>לוח אימון מנטלי · גרסה 2.3 · מסע 21 יום</p>
     </div>
     <div class="hdr-meta">
       <div class="clock" id="clock">--:--</div>
@@ -305,7 +305,10 @@ const DEFAULT_STATE = {
   log:[],                  // appendable history
   audio:{ duration:'30 min', mode:'רוגע', lastQuery:'', vol:0.72 },
   goals:[],                // tracked goals
-  mrate:{}                 // ML youtube star ratings
+  mrate:{},                // ML youtube star ratings
+  sessions:[],             // v2.0 learning loop: {ts,state,id,rating}
+  pending:null,            // v2.0: action awaiting a "did it help?" rating
+  journey:{ start:null, done:{}, lastDate:null }   // 21-day subconscious journey
 };
 let STATE = load();
 function load(){ try{ return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(localStorage.getItem(LS_KEY))||{}); }catch(e){ return JSON.parse(JSON.stringify(DEFAULT_STATE)); } }
@@ -400,7 +403,7 @@ function shareApp(){
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('הקישור הועתק ✓ הדבק בוואטסאפ / מייל'),()=>toast(url)); }
   else { toast(url); }
 }
-const CODE_LIST=['IX','S1','SL','GM','A1','ML','A2','A4','A5','G1','F1','F2'];
+const CODE_LIST=['MD','J1','SOS','IX','S1','SL','GM','A1','ML','A2','A4','A5','G1','F1','F2'];
 function renderCodes(active){
   $('codes').innerHTML = CODE_LIST.map(c=>`<button class="codebtn${c===active?' home':''}" onclick="go('${c}')">${c}</button>`).join('');
 }
@@ -417,22 +420,27 @@ ROUTES.M0 = function(){
   view().innerHTML = `
   <div class="card">
     <h2>👋 שלום, ${esc(STATE.profile.set? 'מוכן/ה לתרגול':'אורח/ת')}</h2>
-    <p class="sub">${c?('מצב נוכחי · '+esc(c.when)):'התת-מודע שלך מקשיב. בוא נתחיל בקטן.'}</p>
+    <p class="sub">${c?('מצב נוכחי · '+esc(c.when)):'איך את/ה מרגיש/ה עכשיו? לחיצה אחת ואתאים לך פעולה.'}</p>
     ${status}
+    ${pendingBanner()}
+    <button class="btn" style="margin-top:12px" onclick="go('MD')">🫧 איך את/ה מרגיש/ה עכשיו?</button>
   </div>
   <div class="grid">
-    ${tile('IX','🔍','חיפוש חכם','אמור מה צריך — נבנה לך תוכנית')}
-    ${tile('S1','🎛️','הערכת מצב','5 שאלות מהירות — אנרגיה, רוגע, מיקוד')}
+    ${tile('MD','🫧','מצב → פעולה','בחר מצב, קבל 3 פעולות מותאמות')}
+    ${tile('J1','📿','מסע 21 יום','תכנות התת-מודע, יום אחר יום')}
+    ${tile('IX','🔍','חיפוש חכם','אמור מה צריך — נבנה תוכנית')}
+    ${tile('S1','🎛️','הערכת מצב','5 שאלות מהירות')}
     ${tile('SL','🌙','מדיטציות שינה','מודרך בעברית, ללא פרסומות')}
-    ${tile('A4','🧘','היפנוזה עצמית','תסריט מודרך בזמן אמת, ללא אודיו')}
-    ${tile('A2','🗣️','מנטרה מיידית','הצהרה מותאמת למצב הנוכחי')}
-    ${tile('A1','🎵','מוזיקה','ספרייה אמיתית + יוטיוב, בלי פרסומות')}
-    ${tile('GM','🧘','מדיטציות מודרכות','בוקר · יום · שינה — בעברית')}
+    ${tile('GM','🧘','מדיטציות מודרכות','בוקר · יום · שינה')}
+    ${tile('A2','🗣️','מנטרה מיידית','הצהרה מותאמת למצב')}
+    ${tile('A1','🎵','מוזיקה','ספרייה אמיתית + יוטיוב')}
     ${tile('ML','⭐','ספריית יוטיוב','מדיטציות מדורגות בכוכבים')}
+    ${tile('A4','🧘','היפנוזה עצמית','תסריט מודרך בזמן אמת')}
     ${tile('A5','📊','אנליטיקה','מגמות 7 ימים והמלצות')}
     ${tile('G1','🎯','יעדים ומעקב','קבע יעדים — נעקוב יחד')}
     ${tile('F1','🗂️','כרטיס פרופיל','ההעדפות שלי')}
   </div>
+  <button class="btn" style="background:rgba(255,138,138,.14);color:var(--warn);border:1px solid rgba(255,138,138,.35);margin-top:4px" onclick="go('SOS')">🆘 עזרה מיידית / מרגיש/ה לא טוב</button>
   ${FOOTER_TEXT}`;
 };
 function tile(code,ic,nm,ds){ return `<button class="tile" onclick="go('${code}')">
@@ -617,6 +625,28 @@ function ttsControls(){
     <button class="chip ttsg${ttsGender==='male'?' sel':''}" data-g="male" onclick="ttsSet('male')">🎙️ גברי</button>
   </div>`;
 }
+/* ---- Auto-narration for guided practices (eyes-closed): read each phase aloud, mute keeps music, loop until stop ---- */
+let ttsMuted=false, loopOn=false;
+function narrText(p){ return p ? (p.t||'') + (p.mantra?'. '+p.mantra:'') : ''; }
+function narrate(text){ if(ttsMuted||!text) return; speak(text); }
+function toggleNarration(){ ttsMuted=!ttsMuted; if(ttsMuted) stopSpeak(); refreshPCtrls(); toast(ttsMuted?'🔇 קריינות מושתקת · המוזיקה ממשיכה':'🔊 קריינות פועלת'); }
+function toggleLoop(){ loopOn=!loopOn; refreshPCtrls(); toast(loopOn?'🔁 לולאה פעילה - חוזר עד שתעצור/י':'לולאה כבויה'); }
+function cycleVoice(){ ttsSet(ttsGender==='female'?'male':'female'); refreshPCtrls(); }
+function pCtrls(){ return `<div class="chips" id="pctrls" style="justify-content:center;margin-top:10px">
+    <button class="chip${ttsMuted?'':' sel'}" onclick="toggleNarration()">${ttsMuted?'🔇 קריינות מושתקת':'🔊 קריינות'}</button>
+    <button class="chip" onclick="cycleVoice()">🎙️ ${ttsGender==='male'?'גברי':'נשי'}</button>
+    <button class="chip${loopOn?' sel':''}" onclick="toggleLoop()">🔁 לולאה</button>
+  </div>`; }
+function refreshPCtrls(){ const el=$('pctrls'); if(el) el.outerHTML=pCtrls(); }
+/* ---- Manual paging between practice steps (go at your own pace) ---- */
+let a4ph=[];
+function gmSkip(d){ clearInterval(gmTimer); const n=GUIDED[gmKey].phases.length; gmI=Math.max(0,Math.min(n-1,gmI+d)); gmRun(); }
+function slSkip(d){ clearInterval(slTimer); const n=SLEEP_MEDS[slMedIdx].phases.length; slI=Math.max(0,Math.min(n-1,slI+d)); slRunPhase(); }
+function a4Skip(d){ clearInterval(a4timer); const n=a4ph.length; a4i=Math.max(0,Math.min(n-1,a4i+d)); runPhase(a4ph); }
+function pageCtrls(kind){ return `<div class="chips" style="justify-content:center;margin-top:8px">
+    <button class="chip" onclick="${kind}Skip(-1)">⏮️ הקודם</button>
+    <button class="chip" onclick="${kind}Skip(1)">הבא ⏭️</button>
+  </div>`; }
 let a2Parts=[];
 function speakPart(i){ if(a2Parts[i]) speak(a2Parts[i]); }
 function speakAll(){ if(a2Parts.length) speak(a2Parts.join('. ')); }
@@ -964,7 +994,7 @@ ROUTES.A4=function(){
   </div>${FOOTER_TEXT}`;
 };
 function a4start(){
-  const ph=a4phases(); a4i=0;
+  a4ph=a4phases(); const ph=a4ph; a4i=0;
   const _t=STATE.profile.target;
   const amb=(_t==='אנרגיה')?'אנרגיה':(_t==='מיקוד')?'מיקוד':(_t==='שינה')?'שינה':'רוגע';
   a1sel.mode=amb; startScene(amb,getVol()); armAudioTimer();   // background music during relaxation
@@ -985,6 +1015,8 @@ function a4start(){
       <div class="steps" id="a4dots">${ph.map((_,i)=>`<div class="dot" id="a4d${i}"></div>`).join('')}</div>
       <div class="vol" style="justify-content:center">🔊 <input type="range" min="0" max="1" step="0.05" value="${getVol()}" oninput="a1Vol(this.value)" style="max-width:160px"></div>
       <button class="jumpbtn" id="a4mus" onclick="a4toggleMusic()" style="margin-top:6px">🎵 מוזיקה פועלת</button>
+      ${pCtrls()}
+      ${pageCtrls('a4')}
       <br><button class="btn ghost" style="margin-top:12px" onclick="a4stop()">⏹️ עצור וצא</button>
     </div>
   </div>${FOOTER_TEXT}`;
@@ -996,10 +1028,11 @@ function a4toggleMusic(){
   else { startScene(a1sel.mode||'רוגע',getVol()); armAudioTimer(); if(b){ b.textContent='🎵 מוזיקה פועלת'; } }
 }
 function runPhase(ph){
-  if(a4i>=ph.length){ a4done(); return; }
+  if(a4i>=ph.length){ if(loopOn){ a4i=0; } else { a4done(); return; } }
   const p=ph[a4i]; let left=p.s; const R=327;
   $('a4name').textContent='שלב '+(a4i+1)+'/'+ph.length+' · '+p.n;
   $('a4text').innerHTML = (p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>'));
+  narrate(narrText(p));
   $('a4breath').innerHTML = p.breath?'<div class="breath"></div>':'';
   ph.forEach((_,i)=>$('a4d'+i).classList.toggle('on',i<=a4i));
   const upd=()=>{ $('a4time').textContent=left; $('a4ring').style.strokeDashoffset = R*(1-left/p.s); };
@@ -1014,7 +1047,8 @@ function a4done(){
     <h2>✨ התרגול הושלם</h2>
     <p class="sub">חזרת להווה — רענן/ת וממוקד/ת</p>
     <div class="mantra" style="text-align:center">כל הכבוד. הרגע הזה שלך.<br>אפשר לקבע אותו עם הערכת מצב קצרה.</div>
-    <button class="btn" onclick="go('S1')">🎛️ הערכת מצב אחרי (S1)</button>
+    ${STATE.pending?'<button class="btn" onclick="a1Stop();go(\'R1\')">⭐ עזר לך? דרג/י</button>':''}
+    <button class="btn ghost" onclick="go('S1')">🎛️ הערכת מצב אחרי (S1)</button>
     <button class="btn ghost" onclick="go('M0')">🏠 חזרה לתפריט</button>
   </div>${FOOTER_TEXT}`;
 }
@@ -1155,6 +1189,7 @@ function ixRun(q){ const el=$('ixq'); if(el) el.value=q; ixSearch(q); }
 function ixSearch(forced){
   const q=(forced || ($('ixq')?$('ixq').value:'')||'').trim();
   if(!q){ toast('כתוב/י מה צריך/ה'); return; }
+  if(isCrisis(q)){ go('SOS'); return; }   // safety: route distress to help, not a plan
   const it=matchIntent(q);
   if(!it){ $('ixout').innerHTML=`<div class="note">לא זוהה נושא מדויק 🤔 נסה/י מילים כמו: שינה, אנרגיה, רוגע, מיקוד, ביטחון, כסף, השראה, בוקר.</div>`; return; }
   renderPlan(it,q);
@@ -1317,6 +1352,8 @@ function slStart(idx){
       <div class="phase-text" id="sltext"></div>
       <div class="steps" id="sldots">${med.phases.map((_,i)=>`<div class="dot" id="sld${i}"></div>`).join('')}</div>
       <div class="playhint">🎧 צליל הרקע ממשיך גם בסיום, כדי שתירדם/י ברוגע</div>
+      ${pCtrls()}
+      ${pageCtrls('sl')}
       <button class="btn ghost" style="margin-top:12px" onclick="slStop()">⏹️ עצור</button>
     </div>
   </div>${FOOTER_TEXT}`;
@@ -1324,10 +1361,11 @@ function slStart(idx){
 }
 function slRunPhase(){
   const ph=SLEEP_MEDS[slMedIdx].phases;
-  if(slI>=ph.length){ slDone(); return; }
+  if(slI>=ph.length){ if(loopOn){ slI=0; } else { slDone(); return; } }
   const p=ph[slI], R=327; let left=p.s;
   $('slname').textContent='שלב '+(slI+1)+'/'+ph.length+' · '+p.n;
   $('sltext').innerHTML = p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>');
+  narrate(narrText(p));
   $('slbreath').innerHTML = p.breath?'<div class="breath"></div>':'';
   ph.forEach((_,i)=>$('sld'+i).classList.toggle('on',i<=slI));
   const upd=()=>{ $('sltime').textContent=left; $('slring').style.strokeDashoffset=R*(1-left/p.s); };
@@ -1341,6 +1379,7 @@ function slDone(){
     <h2>🌙 לילה טוב</h2>
     <p class="sub">צליל הרקע ממשיך לנגן ברכות</p>
     <div class="mantra" style="text-align:center">תן/י לעצמך לשקוע.<br>אין צורך לעשות דבר נוסף.</div>
+    ${STATE.pending?'<button class="btn ghost" onclick="go(\'R1\')">⭐ עזר לך? דרג/י</button>':''}
     <button class="btn ghost" onclick="a1Stop();go('M0')">⏹️ עצור צליל וחזרה לתפריט</button>
   </div>${FOOTER_TEXT}`;
 }
@@ -1396,16 +1435,19 @@ function gmStart(key){
       <div class="phase-text" id="gmtext"></div>
       <div class="steps" id="gmdots">${med.phases.map((_,i)=>`<div class="dot" id="gmd${i}"></div>`).join('')}</div>
       <button class="jumpbtn" id="gmmus" onclick="a4toggleMusic()" style="margin-top:6px">🎵 מוזיקה פועלת</button>
+      ${pCtrls()}
+      ${pageCtrls('gm')}
       <br><button class="btn ghost" style="margin-top:12px" onclick="gmStop()">⏹️ עצור וצא</button>
   </div></div>${FOOTER_TEXT}`;
   gmRun();
 }
 function gmRun(){
   const ph=GUIDED[gmKey].phases;
-  if(gmI>=ph.length){ gmDone(); return; }
+  if(gmI>=ph.length){ if(loopOn){ gmI=0; } else { gmDone(); return; } }
   const p=ph[gmI], R=327; let left=p.s;
   $('gmname').textContent='שלב '+(gmI+1)+'/'+ph.length+' · '+p.n;
   $('gmtext').innerHTML = p.mantra? `${esc(p.t)}<br><b style="color:var(--accent2)">«${esc(p.mantra)}»</b>` : esc(p.t).replace(/\n/g,'<br>');
+  narrate(narrText(p));
   $('gmbreath').innerHTML = p.breath?'<div class="breath"></div>':'';
   ph.forEach((_,i)=>$('gmd'+i).classList.toggle('on',i<=gmI));
   const upd=()=>{ $('gmtime').textContent=left; $('gmring').style.strokeDashoffset=R*(1-left/p.s); };
@@ -1413,11 +1455,13 @@ function gmRun(){
   gmTimer=setInterval(()=>{ left--; if(left<0){ gmI++; gmRun(); } else upd(); },1000);
 }
 function gmDone(){
+  if(gmKey==='_journey'){ journeyComplete(); return; }
   clearInterval(gmTimer); const med=GUIDED[gmKey];
   view().innerHTML=`<div class="card">
     <h2>${med.endTitle}</h2>
     <div class="mantra" style="text-align:center">${esc(med.endText)}</div>
-    <button class="btn" onclick="a1Stop();go('GM')">⏹️ עצור צליל וחזרה</button>
+    ${STATE.pending?'<button class="btn" onclick="a1Stop();go(\'R1\')">⭐ עזר לך? דרג/י</button>':''}
+    <button class="btn ghost" onclick="a1Stop();go('GM')">⏹️ עצור צליל וחזרה</button>
     <button class="btn ghost" onclick="go('M0')">🏠 תפריט ראשי</button>
   </div>${FOOTER_TEXT}`;
 }
@@ -1469,6 +1513,225 @@ ROUTES.ML=function(){
   </div>${FOOTER_TEXT}`;
 };
 function mlSet(c){ mlFilter=c; go('ML'); }
+
+/* ============================================================
+   v2.0 (שוחזר) — LEARNING LOOP: mood -> 3 actions -> practice -> rate -> learn
+============================================================ */
+Object.assign(GUIDED,{
+  breath:{ name:'נשימת 4-7-8', icon:'🌬️', ambient:'רוגע', endTitle:'נשמת 🌬️', endText:'הגוף רגוע יותר עכשיו.', phases:[
+    {n:'הכנה', s:15, breath:false, t:'שב/י בנוחות. נשום/י פנימה 4 שניות, החזק/י 7, נשוף/י לאט 8.'},
+    {n:'מחזור 1', s:19, breath:true, t:'שאיפה 1-2-3-4... החזקה... נשיפה ארוכה עד 8.'},
+    {n:'מחזור 2', s:19, breath:true, t:'שוב - שאיפה רכה דרך האף... החזקה... נשיפה איטית דרך הפה.'},
+    {n:'מחזור 3', s:19, breath:true, t:'הגוף מתחיל להירגע... שאיפה... נשיפה משחררת.'},
+    {n:'סיום', s:14, breath:false, t:'נשום/י טבעי. שים/י לב כמה מתח כבר השתחרר.'} ]},
+  grounding:{ name:'קרקוע 5-4-3-2-1', icon:'🌿', ambient:'רוגע', endTitle:'כאן ועכשיו 🌿', endText:'חזרת אל הרגע. המחשבות נרגעו.', phases:[
+    {n:'ראייה', s:20, breath:false, t:'הבט/י סביבך. שם/י לב ל-5 דברים שאת/ה רואה עכשיו.'},
+    {n:'מגע', s:18, breath:false, t:'4 דברים שאת/ה יכול/ה לגעת בהם או להרגיש על הגוף.'},
+    {n:'שמיעה', s:18, breath:false, t:'3 צלילים שאת/ה שומע/ת ברגע זה.'},
+    {n:'ריח', s:14, breath:false, t:'2 ריחות בסביבה שלך.'},
+    {n:'טעם', s:14, breath:false, t:'טעם אחד בפה. נשימה עמוקה - את/ה כאן, בטוח/ה.'} ]},
+  calm:{ name:'הרפיה קצרה', icon:'🍃', ambient:'רוגע', endTitle:'רגוע/ה יותר 🍃', endText:'קח/י את הרוגע הזה איתך.', phases:[
+    {n:'שחרור', s:30, breath:true, t:'נשימות איטיות. עם כל נשיפה - שחרר/י את הכתפיים והלסת.'},
+    {n:'עוגן', s:28, breath:false, mantra:'משהו בי יודע שיהיה בסדר.', t:'חזור/חזרי בשקט:'},
+    {n:'סיום', s:18, breath:false, t:'נשימה אחת עמוקה. את/ה יכול/ה להמשיך מכאן.'} ]},
+});
+const MOODS=[
+  {k:'anxiety', ic:'😰', t:'חרדה / לחץ',            dont:'אל תפתח/י עכשיו דוחות, בנק או חדשות', acts:['breath','mantraStab','a4']},
+  {k:'money',   ic:'💰', t:'עומס כספי / לפני עסקה', dont:'אל תיכנס/י לסחרור ניתוח לפני שנרגעת',   acts:['s1','mantraMoney','breath']},
+  {k:'tired',   ic:'😴', t:'עייפות / חוסר אנרגיה',  dont:'אל תעמיס/י מדיטציה ארוכה',              acts:['audioEnergy','mantraEnergy','gmDay']},
+  {k:'focus',   ic:'🎯', t:'בלבול / חוסר מיקוד',    dont:'אל תיתן/י לעצמך 12 אפשרויות - בחר/י אחת', acts:['grounding','gmDay','mantraFocus']},
+  {k:'sad',     ic:'😔', t:'עצב / ירידה',           dont:'אל תדחוף/י "חיוביות מוגזמת" - עדינות',   acts:['gratitude','calm','mantraCalm']},
+  {k:'sleep',   ic:'🌙', t:'לפני שינה',             dont:'אל תפתח/י מסכים בהירים או שיחות',        acts:['sleepMed','sleepAudio','bodyscan']},
+];
+const IVS={
+  breath:{t:'נשימת 4-7-8', ic:'🌬️', run:()=>gmStart('breath')},
+  grounding:{t:'קרקוע 5-4-3-2-1', ic:'🌿', run:()=>gmStart('grounding')},
+  calm:{t:'הרפיה קצרה', ic:'🍃', run:()=>gmStart('calm')},
+  a4:{t:'היפנוזה עצמית', ic:'🧘', run:()=>go('A4')},
+  gmDay:{t:'מיקוד מודרך', ic:'🎯', run:()=>gmStart('day')},
+  mantraStab:{t:'מנטרת יציבות וביטחון', ic:'🛡️', run:()=>jumpMantra('ביטחון')},
+  mantraEnergy:{t:'מנטרת אנרגיה', ic:'⚡', run:()=>jumpMantra('אנרגיה')},
+  mantraFocus:{t:'מנטרת מיקוד', ic:'🧠', run:()=>jumpMantra('מיקוד')},
+  mantraCalm:{t:'מנטרת רוגע', ic:'🌊', run:()=>jumpMantra('רוגע')},
+  mantraMoney:{t:'מנטרת יציבות כספית', ic:'💰', run:()=>jumpMantra('כסף-חרדה')},
+  gratitude:{t:'תרגול הכרת תודה', ic:'🙏', run:()=>jumpMantra('שפע')},
+  audioEnergy:{t:'צליל ממריץ', ic:'🎵', run:()=>{setAudioMode('אנרגיה');go('A1');}},
+  sleepMed:{t:'מדיטציית שינה', ic:'🌙', run:()=>go('SL')},
+  sleepAudio:{t:'צליל שינה 432Hz', ic:'🔊', run:()=>{setAudioMode('שינה');go('A1');}},
+  bodyscan:{t:'סריקת גוף לשינה', ic:'🛏️', run:()=>slStart(0)},
+  s1:{t:'בדיקת מצב מהירה', ic:'🎛️', run:()=>go('S1')},
+};
+function ivScore(state,id){ const s=STATE.sessions.filter(x=>x.state===state&&x.id===id&&x.rating); if(!s.length) return null; return s.reduce((a,x)=>a+x.rating,0)/s.length; }
+function recommend(state){ const def=(MOODS.find(m=>m.k===state)||{}).acts||[];
+  return def.slice().sort((a,b)=>{ const sa=ivScore(state,a), sb=ivScore(state,b); return (sb==null?3:sb)-(sa==null?3:sa); }).slice(0,3); }
+function pendingBanner(){ const p=STATE.pending; if(!p) return ''; const iv=IVS[p.id]||{t:'התרגול'};
+  return `<div class="nowbar" style="cursor:pointer;background:rgba(255,206,107,.12);border-color:rgba(255,206,107,.35);color:var(--gold)" onclick="go('R1')">⭐ עזר לך "${esc(iv.t)}"? לחץ/י לדרג ולעזור לי ללמוד</div>`; }
+ROUTES.MD=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🫧 איך את/ה מרגיש/ה עכשיו? <span class="tag">MD</span></h2>
+    <p class="sub">לחיצה אחת - ואתאים לך 3 פעולות קצרות. בלי הקלדות.</p>
+    ${pendingBanner()}
+    <div class="grid" style="margin-top:6px">
+      ${MOODS.map(m=>`<button class="tile" style="text-align:center" onclick="mdShow('${m.k}')"><div class="ic" style="font-size:30px">${m.ic}</div><div class="nm" style="margin-top:6px">${esc(m.t)}</div></button>`).join('')}
+    </div>
+    <button class="btn ghost" style="margin-top:10px;color:var(--warn);border-color:rgba(255,138,138,.35)" onclick="go('SOS')">🆘 מרגיש/ה ממש לא טוב? עזרה מיידית</button>
+  </div>${FOOTER_TEXT}`;
+};
+function mdShow(k){
+  const m=MOODS.find(x=>x.k===k); const ids=recommend(k);
+  view().innerHTML=`
+  <div class="card">
+    <h2>${m.ic} ${esc(m.t)} <span class="tag">MD</span></h2>
+    <div class="note" style="background:rgba(255,138,138,.08);border-color:rgba(255,138,138,.25);color:var(--warn)">🚫 ${esc(m.dont)}</div>
+    <p class="sub" style="margin-top:12px">3 פעולות מותאמות (לפי מה שכבר עבד לך):</p>
+    ${ids.map((id,i)=>{ const iv=IVS[id]; const sc=ivScore(k,id);
+      return `<button class="tile" style="width:100%;margin-bottom:8px" onclick="doAction('${k}','${id}')">
+        <div style="display:flex;align-items:center;gap:10px"><div class="ic">${iv.ic}</div>
+        <div><div class="nm">${i+1}. ${esc(iv.t)}</div>${sc?`<div class="ds" style="color:var(--good)">👍 עזר לך בעבר (${sc.toFixed(1)}/5)</div>`:'<div class="ds">מומלץ למצב הזה</div>'}</div></div></button>`; }).join('')}
+    <button class="btn ghost" onclick="go('MD')">↩️ מצב אחר</button>
+  </div>${FOOTER_TEXT}`;
+}
+function doAction(state,id){ STATE.pending={state,id,ts:Date.now()}; save(); const iv=IVS[id]; if(iv&&iv.run) iv.run(); }
+ROUTES.R1=function(){
+  const p=STATE.pending;
+  if(!p){ view().innerHTML=`<div class="card"><h2>⭐ דירוג תרגול <span class="tag">R1</span></h2><div class="empty">אין תרגול ממתין לדירוג.<br>התחל/י מ"איך את/ה מרגיש/ה עכשיו?"</div><button class="btn" onclick="go('MD')">🫧 בחר/י מצב</button></div>${FOOTER_TEXT}`; return; }
+  const iv=IVS[p.id]||{t:'התרגול',ic:'🧘'};
+  view().innerHTML=`
+  <div class="card">
+    <h2>⭐ עזר לך? <span class="tag">R1</span></h2>
+    <p class="sub">${iv.ic} ${esc(iv.t)}</p>
+    <div class="empty" style="line-height:1.7">כמה התרגול הזה עזר לך עכשיו?<br>הדירוג שלך מלמד את המערכת מה באמת עובד בשבילך.</div>
+    <div class="chips" style="justify-content:center">
+      ${[1,2,3,4,5].map(n=>`<button class="chip scale" onclick="r1Save(${n})" style="width:48px;height:48px;font-size:18px">${n}</button>`).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);margin-top:4px"><span>1 = לא עזר</span><span>5 = עזר מאוד</span></div>
+    <button class="btn ghost" style="margin-top:14px" onclick="STATE.pending=null;save();go('M0')">דלג/י</button>
+  </div>${FOOTER_TEXT}`;
+};
+function r1Save(n){ const p=STATE.pending; if(!p){ go('M0'); return; }
+  STATE.sessions.push({ts:Date.now(),state:p.state,id:p.id,rating:n}); STATE.pending=null; save(); r1Thanks(p.state,p.id,n); }
+function r1Thanks(state,id,n){
+  const m=MOODS.find(x=>x.k===state)||{}; const top=recommend(state);
+  view().innerHTML=`
+  <div class="card">
+    <h2>🙏 תודה, זה עוזר לי ללמוד אותך</h2>
+    <p class="sub">${n>=4?'מעולה - אקדם את זה בפעם הבאה במצב הזה.':n<=2?'רשמתי. אציע פחות את זה במצב הזה.':'נרשם.'}</p>
+    <div style="font-size:12px;color:var(--ink-faint);margin:10px 0 4px">מה שעובד לך הכי טוב במצב "${esc(m.t||'')}":</div>
+    ${top.map(tid=>`<div class="mi-row" style="font-size:13px">${(IVS[tid]||{}).ic||''} ${esc((IVS[tid]||{}).t||'')} ${ivScore(state,tid)?'<span style="color:var(--good)">'+ivScore(state,tid).toFixed(1)+'/5</span>':''}</div>`).join('')}
+    <button class="btn" onclick="go('MD')">🫧 עוד פעולה</button>
+    <button class="btn ghost" onclick="go('M0')">🏠 תפריט ראשי</button>
+  </div>${FOOTER_TEXT}`;
+}
+const RED_WORDS=['להתאבד','אובדנ','לשים סוף','לגמור עם הכל','לפגוע בעצמי','פגיעה עצמית','לא רוצה לחיות','אין טעם לחיות','למות','להיעלם','אין לי סיבה','לחתוך את עצמי'];
+function isCrisis(text){ const s=(text||'').toLowerCase(); return RED_WORDS.some(w=>s.includes(w)); }
+ROUTES.SOS=function(){
+  view().innerHTML=`
+  <div class="card">
+    <h2>🆘 עזרה מיידית <span class="tag">SOS</span></h2>
+    <div class="note" style="background:rgba(255,138,138,.1);border-color:rgba(255,138,138,.35);color:var(--warn);font-size:12.5px">
+      זהו כלי לאימון ותמיכה - <b>לא</b> טיפול רפואי ולא תחליף לאיש מקצוע. אם את/ה בסכנה מיידית או במצוקה קשה, אינך צריך/ה להתמודד לבד.
+    </div>
+    <div style="font-size:12px;color:var(--ink-faint);margin:14px 0 6px">📞 דבר/י עם מישהו עכשיו (בישראל):</div>
+    <a class="btn" style="text-decoration:none" href="tel:1201">☎️ ער"ן - עזרה ראשונה נפשית · 1201 (24/7, אנונימי)</a>
+    <a class="btn ghost" style="text-decoration:none" href="https://www.eran.org.il" target="_blank" rel="noopener">💬 ער"ן - צ'אט אונליין</a>
+    <a class="btn ghost" style="text-decoration:none" href="tel:101">🚑 מצב חירום / סכנה מיידית · 101 (מד"א)</a>
+    <div style="font-size:12px;color:var(--ink-faint);margin:16px 0 6px">🫧 בינתיים, בואו נרגיע יחד את הגוף:</div>
+    <button class="btn" onclick="STATE.pending=null;save();gmStart('breath')">🌬️ נשימה מרגיעה (90 שניות)</button>
+    <button class="btn ghost" onclick="STATE.pending=null;save();gmStart('grounding')">🌿 תרגיל קרקוע (כאן ועכשיו)</button>
+    <div class="note" style="margin-top:12px">אתה/את לא לבד. הרגשות האלה חולפים. פנייה לעזרה היא סימן של כוח, לא של חולשה.</div>
+  </div>${FOOTER_TEXT}`;
+};
+
+/* ============================================================
+   J1 — מסע 21 יום לתכנות התת-מודע
+============================================================ */
+const WEEK_TITLE=['שחרור ורגיעה','בנייה וביטחון','שפע והגשמה'];
+const WEEK_INTENT=['השבוע אנחנו משחררים ומרגיעים - הבסיס לכל שינוי.','השבוע אנחנו בונים ביטחון וערך עצמי.','השבוע אנחנו פותחים לשפע ולהגשמה.'];
+const JOURNEY=[
+  {d:1, wk:1, aff:'אני משחרר/ת את מתחי היום, וגופי יודע להירגע לגמרי'},
+  {d:2, wk:1, aff:'עם כל נשיפה אני נעשה/ית רגוע/ה, כבד/ה ובטוח/ה'},
+  {d:3, wk:1, aff:'אני מרשה לעצמי לשחרר את מה שאינו בשליטתי'},
+  {d:4, wk:1, aff:'השקט הפנימי שלי חזק מכל רעש חיצוני'},
+  {d:5, wk:1, aff:'אני נושם/ת עמוק, והרוגע ממלא כל תא בגופי'},
+  {d:6, wk:1, aff:'אני משוחרר/ת מהעבר, ונוכח/ת ברגע הזה'},
+  {d:7, wk:1, aff:'גופי ונפשי מתאזנים, ואני שליו/ה מבפנים'},
+  {d:8, wk:2, aff:'יש בי כוח פנימי שגדל מיום ליום'},
+  {d:9, wk:2, aff:'אני בטוח/ה בעצמי וביכולותיי'},
+  {d:10, wk:2, aff:'אני ראוי/ה לכל הטוב שבא אליי'},
+  {d:11, wk:2, aff:'האומץ שבי מתחזק, ואני פועל/ת למרות הפחד'},
+  {d:12, wk:2, aff:'ערכי אינו תלוי באיש - הוא נובע מתוכי'},
+  {d:13, wk:2, aff:'אני סומך/ת על החוכמה הפנימית שלי'},
+  {d:14, wk:2, aff:'אני בונה מציאות חדשה במחשבות שאני בוחר/ת'},
+  {d:15, wk:3, aff:'השפע זורם אליי בטבעיות מכל כיוון'},
+  {d:16, wk:3, aff:'אני אסיר/ת תודה על העושר שכבר קיים בחיי'},
+  {d:17, wk:3, aff:'הצלחה נמשכת אליי, ואני פתוח/ה לקבל אותה'},
+  {d:18, wk:3, aff:'האנרגיה שלי גבוהה, ואני יוצר/ת את יומי'},
+  {d:19, wk:3, aff:'אני ממגנט/ת הזדמנויות ושיתופי פעולה מוצלחים'},
+  {d:20, wk:3, aff:'כל מה שאני מדמיין/ת ומרגיש/ה - אני יכול/ה להגשים'},
+  {d:21, wk:3, aff:'אני שלם/ה, חזק/ה, ומוכן/ה לחיים שאני רוצה'},
+];
+function jDoneCount(){ return Object.keys(STATE.journey.done||{}).length; }
+function jCurrent(){ return Math.min(21, jDoneCount()+1); }
+function weekOf(day){ return Math.max(1,Math.min(3,Math.ceil(day/7))); }
+function dayPhases(day){ const j=JOURNEY[day-1];
+  return [
+    {n:'הכנה', s:25, breath:true, t:'שב/י בנוחות, עצום/י עיניים.\nנשימה עמוקה דרך האף... ונשיפה ארוכה דרך הפה.'},
+    {n:'כוונת השבוע', s:18, breath:false, t:WEEK_INTENT[j.wk-1]},
+    {n:'הצהרת היום', s:42, breath:false, mantra:j.aff, t:'חזור/חזרי פנימה, לאט:'},
+    {n:'הטמעה', s:42, breath:false, mantra:j.aff, t:'הרגש/י את המילים ממלאות אותך:'},
+    {n:'סיום', s:20, breath:false, t:'קח/י את ההצהרה איתך אל תוך היום.\nפקח/י עיניים כשמוכן/ה.'},
+  ];
+}
+let journeyActiveDay=0;
+function jStart(day){ if(day>jCurrent()){ toast('סיים/י קודם את הימים שלפני'); return; }
+  if(!STATE.journey.start){ STATE.journey.start=Date.now(); save(); }
+  const j=JOURNEY[day-1], amb=j.wk===1?'רוגע':j.wk===2?'מיקוד':'אנרגיה';
+  GUIDED['_journey']={name:'יום '+day+' · '+WEEK_TITLE[j.wk-1], icon:'📿', ambient:amb, endTitle:'', endText:'', phases:dayPhases(day)};
+  journeyActiveDay=day; gmStart('_journey');
+}
+function journeyComplete(){
+  clearInterval(gmTimer); const day=journeyActiveDay, j=JOURNEY[day-1];
+  STATE.journey.done[day]=true; STATE.journey.lastDate=new Date().toDateString(); save();
+  const done=jDoneCount();
+  view().innerHTML=`<div class="card">
+    <h2>🌟 יום ${day} הושלם</h2>
+    <p class="sub">${done}/21 · ${WEEK_TITLE[j.wk-1]}</p>
+    <div class="mantra" style="text-align:center">${esc(j.aff)}</div>
+    ${done>=21?'<div class="note" style="background:rgba(255,206,107,.12);border-color:rgba(255,206,107,.35);color:var(--gold)">🏆 סיימת את כל 21 הימים! שינוי אמיתי נבנה מעקביות. כל הכבוד.</div>':'<div class="playhint">מומלץ יום אחד בכל יום. חזור/חזרי מחר ליום '+(day+1)+'.</div>'}
+    <button class="btn" onclick="a1Stop();go('J1')">📿 חזרה למסע</button>
+    <button class="btn ghost" onclick="a1Stop();go('M0')">🏠 תפריט ראשי</button>
+  </div>${FOOTER_TEXT}`;
+}
+ROUTES.J1=function(){
+  const jr=STATE.journey, done=jDoneCount(), cur=jCurrent();
+  if(!jr.start && done===0){
+    view().innerHTML=`<div class="card">
+      <h2>📿 מסע 21 יום <span class="tag">J1</span></h2>
+      <p class="sub">תכנות התת-מודע - יום אחד בכל פעם. 21 יום = בניית הרגל חדש.</p>
+      <div class="empty" style="text-align:start;line-height:1.9">
+        3 שבועות, 3 שלבים:<br>
+        🌿 שבוע 1 - שחרור ורגיעה<br>
+        🛡️ שבוע 2 - בנייה וביטחון<br>
+        ✨ שבוע 3 - שפע והגשמה<br>
+        כל יום: תרגול קצר (~3 דק') עם הצהרה, קריינות ומוזיקת רקע.</div>
+      <button class="btn" onclick="jStart(1)">🚀 התחל את המסע - יום 1</button>
+    </div>${FOOTER_TEXT}`;
+    return;
+  }
+  const cells=JOURNEY.map(j=>{ const d=j.d, isDone=!!jr.done[d], isCur=(d===cur&&!isDone), locked=d>cur;
+    const st=isDone?'background:var(--good);color:#091029':isCur?'background:linear-gradient(135deg,#7c9cff,#8be0d4);color:#091029':'';
+    return `<button class="chip scale" ${locked?'disabled style="opacity:.3"':`onclick="jStart(${d})" style="${st}"`}>${isDone?'✓':d}</button>`;
+  }).join('');
+  view().innerHTML=`<div class="card">
+    <h2>📿 מסע 21 יום <span class="tag">J1</span></h2>
+    <div class="streakcard"><div class="sn">${done}<span style="font-size:16px">/21</span></div>
+      <div class="sl"><b>${done>=21?'הושלם! 🏆':WEEK_TITLE[weekOf(cur)-1]}</b><br><span style="color:var(--ink-faint)">${done>=21?'סיימת את המסע':'היום שלך: יום '+cur}</span></div></div>
+    ${done<21?`<button class="btn" onclick="jStart(${cur})">▶️ יום ${cur} - ${jr.done[cur]?'חזור':'התחל'}</button>`:''}
+    <div style="font-size:11px;color:var(--ink-faint);margin:16px 0 8px">21 הימים (✓ הושלם · צבוע = היום · אפור = נעול):</div>
+    <div class="chips" style="justify-content:flex-start">${cells}</div>
+  </div>${FOOTER_TEXT}`;
+};
 
 /* ============================================================
    BOOT
