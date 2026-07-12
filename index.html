@@ -264,7 +264,7 @@
     <div class="logo">🌀</div>
     <div>
       <h1>מרחב התת-מודע</h1>
-      <p>לוח אימון מנטלי · גרסה 2.3 · מסע 21 יום</p>
+      <p>לוח אימון מנטלי · גרסה 2.5 · קול טבעי + מקורות עבריים</p>
     </div>
     <div class="hdr-meta">
       <div class="clock" id="clock">--:--</div>
@@ -308,7 +308,8 @@ const DEFAULT_STATE = {
   mrate:{},                // ML youtube star ratings
   sessions:[],             // v2.0 learning loop: {ts,state,id,rating}
   pending:null,            // v2.0: action awaiting a "did it help?" rating
-  journey:{ start:null, done:{}, lastDate:null }   // 21-day subconscious journey
+  journey:{ start:null, done:{}, lastDate:null },   // 21-day subconscious journey
+  tts:{ voice:'', rate:0.80, pitch:1.0 }            // narration voice settings (natural, meditative)
 };
 let STATE = load();
 function load(){ try{ return Object.assign(JSON.parse(JSON.stringify(DEFAULT_STATE)), JSON.parse(localStorage.getItem(LS_KEY))||{}); }catch(e){ return JSON.parse(JSON.stringify(DEFAULT_STATE)); } }
@@ -403,7 +404,7 @@ function shareApp(){
   else if(navigator.clipboard){ navigator.clipboard.writeText(url).then(()=>toast('הקישור הועתק ✓ הדבק בוואטסאפ / מייל'),()=>toast(url)); }
   else { toast(url); }
 }
-const CODE_LIST=['MD','J1','SOS','IX','S1','SL','GM','A1','ML','A2','A4','A5','G1','F1','F2'];
+const CODE_LIST=['MD','J1','VO','SOS','IX','S1','SL','GM','A1','ML','A2','A4','A5','G1','F1','F2'];
 function renderCodes(active){
   $('codes').innerHTML = CODE_LIST.map(c=>`<button class="codebtn${c===active?' home':''}" onclick="go('${c}')">${c}</button>`).join('');
 }
@@ -503,10 +504,34 @@ function s1result(e){
     ${metricRow('💰','רוגע כספי',e.money)}
     ${metricRow('🙂','מצב רוח',e.mood)}
     <div class="stars">${starStr(e.overall)} <span style="font-size:12px;color:var(--ink-faint)">(${e.overall}/5)</span></div>
-    ${e.finFlag?'<div class="flag">⚠️ חרדה כספית גבוהה — מומלץ תרגול ביטחון (A4)</div>':''}
-    <button class="btn" onclick="go('A2')">🗣️ מנטרה מותאמת למצב</button>
-    <button class="btn ghost" onclick="go('A4')">🧘 התחל תרגול היפנוזה</button>
+    ${s1Rx(e)}
+    <button class="btn ghost" onclick="go('MD')">🫧 אפשרויות אחרות</button>
+    <button class="btn ghost" onclick="go('M0')">🏠 תפריט ראשי</button>
   </div>${FOOTER_TEXT}`;
+}
+/* חוק S1→פעולה: המדידה תמיד מובילה לפעולה מיידית אחת, לפי המדד החלש ביותר.
+   הפעולה עוברת דרך doAction → נכנסת ללולאת הלמידה (R1/RX). */
+function s1Rx(e){
+  let r;
+  if(e.finFlag){
+    r={ic:'💰', t:'חרדה כספית גבוהה', msg:'לפני כל החלטה כספית - קודם מרגיעים את המערכת. זה לא עיכוב, זו הגנה.',
+       act:"doAction('money','mantraMoney')", btn:'💰 מנטרת יציבות כספית'};
+  } else {
+    const lows=[{k:'calm',v:e.calm},{k:'energy',v:e.energy},{k:'focus',v:e.focus}].sort((a,b)=>a.v-b.v);
+    const low=lows[0];
+    // סף התערבות: רק מדד ≤2 מפעיל פעולה כפויה. 3 ומעלה = תקין → המלצת עקביות בלבד.
+    if(low.v>2) return `<div class="note" style="background:rgba(126,224,166,.1);border-color:rgba(126,224,166,.3);color:var(--good)">✅ אין מדד בסיכון (הנמוך ביותר: ${low.v}/5). ההמלצה: עקביות - תרגול קצר עכשיו יקבע את זה.
+      <button class="jumpbtn" style="margin-top:8px" onclick="doAction('focus','gmDay')">🎯 תרגול מיקוד קצר</button></div>`;
+    if(low.k==='calm')        r={ic:'🌿', t:'הרוגע נמוך', msg:'הגוף בלחץ. מתחילים בהרגעה - זה הבסיס לכל השאר.',
+                                 act:"doAction('anxiety','breath')", btn:'🌬️ נשימה מרגיעה (90 שניות)'};
+    else if(low.k==='energy') r={ic:'⚡', t:'האנרגיה נמוכה', msg:'לא להעמיס. תרגול קצר ומרענן, לא מדיטציה ארוכה.',
+                                 act:"doAction('tired','mantraEnergy')", btn:'⚡ מנטרת אנרגיה'};
+    else                      r={ic:'🧠', t:'המיקוד נמוך', msg:'הראש מפוזר. נעגן אותך חזרה להווה.',
+                                 act:"doAction('focus','grounding')", btn:'🌿 קרקוע 5-4-3-2-1'};
+  }
+  return `<div class="nowbar" style="background:rgba(255,206,107,.12);border-color:rgba(255,206,107,.35);color:var(--gold);margin-top:10px">${r.ic} <b>${esc(r.t)}</b></div>
+    <div class="note" style="margin-top:6px">${esc(r.msg)}</div>
+    <button class="btn" style="margin-top:8px" onclick="${r.act}">${r.btn}</button>`;
 }
 function metricRow(ic,label,val){
   return `<div class="metric"><span class="mi">${ic}</span><span class="ml">${label}</span>
@@ -602,18 +627,24 @@ function jumpMantra(t){ A2_OVERRIDE=t; go('A2'); }
 let ttsGender='female', ttsReading=false;
 function warmVoices(){ try{ speechSynthesis.getVoices(); speechSynthesis.onvoiceschanged=()=>{}; }catch(e){} }
 function heVoices(){ try{ return speechSynthesis.getVoices().filter(v=>/he|iw/i.test(v.lang)); }catch(e){ return []; } }
+function ttsCfg(){ if(!STATE.tts) STATE.tts={voice:'',rate:0.80,pitch:1.0}; return STATE.tts; }
 function pickTtsVoice(){ const vs=heVoices(); if(!vs.length) return null;
-  const male=vs.find(v=>/male|amir|david|דוד|אמיר/i.test(v.name));
-  const female=vs.find(v=>/female|carmit|כרמית|shira/i.test(v.name));
-  if(ttsGender==='male') return male||vs[0];
-  return female||vs[0];
+  const c=ttsCfg();
+  if(c.voice){ const found=vs.find(v=>v.name===c.voice); if(found) return found; }
+  return vs[0];   // use the device's real Hebrew voice
 }
-function ttsSet(g){ ttsGender=g; toast(g==='male'?'🎙️ קול גברי':'🎙️ קול נשי'); document.querySelectorAll('.ttsg').forEach(b=>b.classList.toggle('sel', b.dataset.g===g)); }
+function ttsSet(g){ ttsGender=g; const c=ttsCfg();
+  c.pitch = (g==='male') ? 0.90 : 1.06;   // subtle & natural — NOT the old distorting 0.55/1.45
+  save(); toast(g==='male'?'🎙️ טון נמוך יותר':'🎙️ טון רגיל');
+  document.querySelectorAll('.ttsg').forEach(b=>b.classList.toggle('sel', b.dataset.g===g)); }
 function speak(text){
   if(!('speechSynthesis' in window)){ toast('המכשיר לא תומך בהקראה'); return; }
   speechSynthesis.cancel();
+  const c=ttsCfg();
   const u=new SpeechSynthesisUtterance(text);
-  u.lang='he-IL'; u.rate=0.84; u.pitch = ttsGender==='male'?0.55:1.45;   // wide gap so male/female differ even with one device voice
+  u.lang='he-IL';
+  u.rate  = c.rate  || 0.80;   // slow, meditative pace
+  u.pitch = c.pitch || 1.0;    // natural pitch — no distortion
   const v=pickTtsVoice(); if(v) u.voice=v;
   u.onend=()=>{ ttsReading=false; }; ttsReading=true;
   speechSynthesis.speak(u);
@@ -621,8 +652,9 @@ function speak(text){
 function stopSpeak(){ try{ speechSynthesis.cancel(); }catch(e){} ttsReading=false; }
 function ttsControls(){
   return `<div class="chips" style="margin-top:10px">
-    <button class="chip ttsg${ttsGender==='female'?' sel':''}" data-g="female" onclick="ttsSet('female')">🎙️ נשי</button>
-    <button class="chip ttsg${ttsGender==='male'?' sel':''}" data-g="male" onclick="ttsSet('male')">🎙️ גברי</button>
+    <button class="chip ttsg${ttsGender==='female'?' sel':''}" data-g="female" onclick="ttsSet('female')">🎙️ טון רגיל</button>
+    <button class="chip ttsg${ttsGender==='male'?' sel':''}" data-g="male" onclick="ttsSet('male')">🎙️ טון נמוך</button>
+    <button class="chip" onclick="go('VO')">⚙️ הגדרות קול</button>
   </div>`;
 }
 /* ---- Auto-narration for guided practices (eyes-closed): read each phase aloud, mute keeps music, loop until stop ---- */
@@ -634,7 +666,8 @@ function toggleLoop(){ loopOn=!loopOn; refreshPCtrls(); toast(loopOn?'🔁 לו�
 function cycleVoice(){ ttsSet(ttsGender==='female'?'male':'female'); refreshPCtrls(); }
 function pCtrls(){ return `<div class="chips" id="pctrls" style="justify-content:center;margin-top:10px">
     <button class="chip${ttsMuted?'':' sel'}" onclick="toggleNarration()">${ttsMuted?'🔇 קריינות מושתקת':'🔊 קריינות'}</button>
-    <button class="chip" onclick="cycleVoice()">🎙️ ${ttsGender==='male'?'גברי':'נשי'}</button>
+    <button class="chip" onclick="cycleVoice()">🎙️ ${ttsGender==='male'?'נמוך':'רגיל'}</button>
+    <button class="chip" onclick="go('VO')">⚙️ קול</button>
     <button class="chip${loopOn?' sel':''}" onclick="toggleLoop()">🔁 לולאה</button>
   </div>`; }
 function refreshPCtrls(){ const el=$('pctrls'); if(el) el.outerHTML=pCtrls(); }
@@ -1471,6 +1504,16 @@ function gmStop(){ clearInterval(gmTimer); a1Stop(); toast('התרגול נעצ�
    ML — RATED YOUTUBE MEDITATION CATALOG (real links, star ratings)
 ============================================================ */
 const MCAT=[
+  // — יוצרים ישראליים מובילים (מאומת) —
+  {id:'sc1', cat:'ביטחון', title:'שחר כהן · מדיטציה לחיזוק ביטחון עצמי ודימוי עצמי מנצח', dur:'בינוני', rec:5, url:'https://www.youtube.com/watch?v=3ANJCl2FtFo'},
+  {id:'sc2', cat:'רוגע',   title:'שחר כהן · מדיטציה להתמודדות עם לחץ וחרדה (משחררת סטרס מהשורש)', dur:'בינוני', rec:5, url:'https://www.youtube.com/watch?v=JMEAm4Njeq8'},
+  {id:'sc3', cat:'שפע',    title:'שחר כהן · מדיטציה להגשמת מטרות והטמעה בתת-מודע', dur:'בינוני', rec:5, url:'https://www.youtube.com/watch?v=haey6ZttIuM'},
+  {id:'sc4', cat:'אנרגיה', title:'שחר כהן · מדיטציה להרפיה, ריפוי והטענת הגוף באנרגיה חיובית', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=3j0LHNp_ONk'},
+  {id:'sc5', cat:'שינה',   title:'שחר כהן · מדיטציה לסיום יום ובניית חשיבה חיובית', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=_WLwmRQJJA8'},
+  {id:'yk1', cat:'רוגע',   title:'יוסי קדמי · מדיטציית "סליחה" (שחרור ורגיעה)', dur:'בינוני', rec:4, url:'https://www.youtube.com/watch?v=48LCxE4Lr7Q'},
+  {id:'sl9', cat:'שינה',   title:'אם אתם לא נרדמים - מדיטציה לשינה טובה ועמוקה', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=1V-zNGMNrF8'},
+  {id:'ch1', cat:'ערוצים', title:'📺 ערוץ שחר כהן - כל המדיטציות וההצהרות', dur:'ערוץ', rec:5, url:'https://www.youtube.com/@shahar_cohen'},
+  // — כללי —
   {id:'s1', cat:'שינה', title:'מדיטציה מודרכת לשינה עמוקה והירדמות ב-10 דקות', dur:'10 דק׳', rec:5, url:'https://www.youtube.com/watch?v=1q2Lrpv4gQA'},
   {id:'s2', cat:'שינה', title:'מדיטציה לשינה עמוקה ולהירדמות מהירה – דמיון מודרך', dur:'~30 דק׳', rec:5, url:'https://www.youtube.com/watch?v=gZQVIV3myC8'},
   {id:'s3', cat:'שינה', title:'מדיטציה לפני השינה ותכנות תת-המודע', dur:'ארוך', rec:4, url:'https://www.youtube.com/watch?v=v_JYjbAQuo0'},
@@ -1730,6 +1773,46 @@ ROUTES.J1=function(){
     ${done<21?`<button class="btn" onclick="jStart(${cur})">▶️ יום ${cur} - ${jr.done[cur]?'חזור':'התחל'}</button>`:''}
     <div style="font-size:11px;color:var(--ink-faint);margin:16px 0 8px">21 הימים (✓ הושלם · צבוע = היום · אפור = נעול):</div>
     <div class="chips" style="justify-content:flex-start">${cells}</div>
+  </div>${FOOTER_TEXT}`;
+};
+
+/* ============================================================
+   VO — הגדרות קול הקריינות (בחירת קול עברי אמיתי + קצב מדיטציה)
+============================================================ */
+const VO_SAMPLE='אני נושם עמוק, ומרשה לגוף שלי להירגע לגמרי.';
+function voTest(){ speak(VO_SAMPLE); }
+function voPickVoice(name){ ttsCfg().voice=name; save(); go('VO'); setTimeout(()=>speak(VO_SAMPLE),150); }
+function voRate(v){ ttsCfg().rate=+v; save(); const l=$('vorate'); if(l) l.textContent=(+v).toFixed(2); }
+function voPitch(v){ ttsCfg().pitch=+v; save(); const l=$('vopitch'); if(l) l.textContent=(+v).toFixed(2); }
+function voReset(){ STATE.tts={voice:'',rate:0.80,pitch:1.0}; save(); go('VO'); }
+ROUTES.VO=function(){
+  const c=ttsCfg(); const vs=heVoices();
+  const list = vs.length
+    ? vs.map(v=>`<button class="tile" style="width:100%;margin-bottom:6px;${(c.voice===v.name||(!c.voice&&v===vs[0]))?'border-color:var(--accent);background:rgba(124,156,255,.12)':''}" onclick="voPickVoice('${v.name.replace(/'/g,"\\'")}')">
+        <div class="nm">🎙️ ${esc(v.name)}</div><div class="ds">${esc(v.lang)}${(c.voice===v.name||(!c.voice&&v===vs[0]))?' · ✅ נבחר':''}</div></button>`).join('')
+    : `<div class="empty">לא נמצאו קולות עבריים במכשיר.<br>ראה/י את ההוראה למטה כדי להוריד קול עברי.</div>`;
+  view().innerHTML=`
+  <div class="card">
+    <h2>🎙️ הגדרות קול הקריינות <span class="tag">VO</span></h2>
+    <p class="sub">בחר/י קול, כוונן/י קצב וטון - ושמע/י דוגמה עד שזה נשמע טבעי לך.</p>
+
+    <div style="font-size:12px;color:var(--ink-faint);margin:12px 0 6px">קולות עבריים במכשיר שלך (${vs.length}):</div>
+    ${list}
+
+    <div class="vol" style="margin-top:14px">🐢 קצב <input type="range" min="0.5" max="1.1" step="0.02" value="${c.rate}" oninput="voRate(this.value)"><span id="vorate">${(+c.rate).toFixed(2)}</span></div>
+    <div class="playhint" style="text-align:start">איטי יותר = מתאים למדיטציה (מומלץ 0.75-0.85)</div>
+
+    <div class="vol" style="margin-top:10px">🎚️ טון <input type="range" min="0.8" max="1.2" step="0.02" value="${c.pitch}" oninput="voPitch(this.value)"><span id="vopitch">${(+c.pitch).toFixed(2)}</span></div>
+    <div class="playhint" style="text-align:start">1.00 = טבעי. נמוך יותר = גברי יותר. <b>אל תרחיק - זה מעוות את הקול.</b></div>
+
+    <button class="btn" style="margin-top:14px" onclick="voTest()">🔊 השמע דוגמה</button>
+    <button class="btn ghost" onclick="voReset()">↩️ אפס לברירת מחדל טבעית</button>
+
+    <div class="note" style="margin-top:14px;line-height:1.7">
+      <b>📱 לשיפור דרמטי באיכות הקול העברי באייפון:</b><br>
+      הגדרות ← נגישות ← תוכן מדובר ← קולות ← עברית ← בחר/י קול והורד/י את גרסת <b>"משופר"/"פרימיום"</b>.<br>
+      זה מוריד קול עברי באיכות גבוהה בהרבה, וההקראה באפליקציה תשתמש בו אוטומטית.
+    </div>
   </div>${FOOTER_TEXT}`;
 };
 
