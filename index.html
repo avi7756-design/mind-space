@@ -264,7 +264,7 @@
     <div class="logo">🌀</div>
     <div>
       <h1>מרחב התת-מודע</h1>
-      <p>לוח אימון מנטלי · גרסה 2.6 · תיקון קריינות</p>
+      <p>לוח אימון מנטלי · גרסה 2.7 · התאמה אישית למגדר</p>
     </div>
     <div class="hdr-meta">
       <div class="clock" id="clock">--:--</div>
@@ -300,7 +300,7 @@
 ============================================================ */
 const LS_KEY = 'hypno_dashboard_v1';
 const DEFAULT_STATE = {
-  profile:{ target:'רוגע', time:'לפי צורך', duration:'5-7 דק', tone:'רגשי-מרגיע', gratitude:'תמיד', set:false },
+  profile:{ target:'רוגע', time:'לפי צורך', duration:'5-7 דק', tone:'רגשי-מרגיע', gratitude:'תמיד', gender:'both', set:false },
   current:null,            // latest S1 metrics
   log:[],                  // appendable history
   audio:{ duration:'30 min', mode:'רוגע', lastQuery:'', vol:0.72 },
@@ -361,7 +361,23 @@ function starStr(n){ n=Math.max(1,Math.min(5,Math.round(n))); return '⭐'.repea
 function pct(n){ return (Math.max(0,Math.min(5,n))/5*100); }
 function nowStr(){ const d=new Date(); return d.toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('he-IL',{hour:'2-digit',minute:'2-digit'}); }
 function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove('show'),2200); }
-function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* ---- מנוע מגדר: הופך "משחרר/ת", "עצום/י", "חזור/חזרי" לצורה של המשתמש ---- */
+function userGender(){ try{ return (STATE.profile && STATE.profile.gender) || 'both'; }catch(e){ return 'both'; } }
+function g(t){
+  if(!t || typeof t!=='string') return t;
+  const gen=userGender();
+  if(gen==='both') return t;
+  const SOF={'ך':'כ','ם':'מ','ן':'נ','ף':'פ','ץ':'צ'};   // אותיות סופיות → רגילות כשמוסיפים סיומת
+  return t.replace(/([֐-׿]+)\/([֐-׿]+)/g, (m,a,b)=>{
+    if(gen==='male') return a;                       // זכר = תמיד החלק שלפני הלוכסן
+    if(b.length>=3) return b;                        // "חזור/חזרי" → "חזרי"
+    let base=a, last=base.slice(-1);
+    if(SOF[last]) base=base.slice(0,-1)+SOF[last];   // "ישן"+ה → "ישנה" · "שלם"+ה → "שלמה" · "תן"+י → "תני"
+    if(base.slice(-1)==='ה' && b[0]==='י') return base.slice(0,-1)+b;  // "נעשה/ית" → "נעשית"
+    return base+b;                                   // "משחרר/ת" → "משחררת"
+  });
+}
+function esc(s){ return g(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 const FOOTER_TEXT = `<div class="footer-codes-text">קודים: S1 | A1 | A2 | A4 | A5 | F1 | F2</div>`;
 
@@ -384,7 +400,9 @@ function go(code){
   if(ROUTES[code]){
     CUR=code;
     if(!NAVMODE){ HIST=HIST.slice(0,HPTR+1); if(HIST[HPTR]!==code){ HIST.push(code); HPTR=HIST.length-1; } }
-    const v=view(); v.classList.remove('view'); void v.offsetWidth; v.classList.add('view'); ROUTES[code](); window.scrollTo(0,0);
+    const v=view(); v.classList.remove('view'); void v.offsetWidth; v.classList.add('view'); ROUTES[code]();
+    if(userGender()!=='both'){ const h=v.innerHTML, ng=g(h); if(ng!==h) v.innerHTML=ng; }   // התאמת כל טקסטי המסך למגדר
+    window.scrollTo(0,0);
   }
   else toast('קוד לא מוכר: '+code);
   renderCodes(code); updateNav();
@@ -650,7 +668,7 @@ function speak(text){
   const c=ttsCfg();
   // cancel ONLY if something is actually playing — cancel()+speak() back-to-back drops the utterance
   try{ if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); }catch(e){}
-  const u=new SpeechSynthesisUtterance(text);
+  const u=new SpeechSynthesisUtterance(g(text));   // מותאם למגדר המשתמש
   u.lang='he-IL';
   u.rate  = c.rate  || 0.80;   // slow, meditative pace
   u.pitch = c.pitch || 1.0;    // natural pitch — no distortion
@@ -1809,8 +1827,11 @@ ROUTES.J1=function(){
 /* ============================================================
    VO — הגדרות קול הקריינות (בחירת קול עברי אמיתי + קצב מדיטציה)
 ============================================================ */
-const VO_SAMPLE='אני נושם עמוק, ומרשה לגוף שלי להירגע לגמרי.';
+const VO_SAMPLE='אני נושם/ת עמוק, ומרשה לעצמי להירגע לגמרי. אני רגוע/ה ובטוח/ה.';
 function voTest(){ speak(VO_SAMPLE); }
+function setGender(k){ STATE.profile.gender=k; save();
+  toast(k==='male'?'👨 מעכשיו נפנה אליך בלשון זכר':k==='female'?'👩 מעכשיו נפנה אלייך בלשון נקבה':'⚖️ לשון כפולה');
+  go('VO'); setTimeout(()=>speak(VO_SAMPLE),200); }
 function voPickVoice(name){ ttsCfg().voice=name; save(); go('VO'); setTimeout(()=>speak(VO_SAMPLE),150); }
 function voRate(v){ ttsCfg().rate=+v; save(); const l=$('vorate'); if(l) l.textContent=(+v).toFixed(2); }
 function voPitch(v){ ttsCfg().pitch=+v; save(); const l=$('vopitch'); if(l) l.textContent=(+v).toFixed(2); }
@@ -1823,10 +1844,17 @@ ROUTES.VO=function(){
     : `<div class="empty">לא נמצאו קולות עבריים במכשיר.<br>ראה/י את ההוראה למטה כדי להוריד קול עברי.</div>`;
   view().innerHTML=`
   <div class="card">
-    <h2>🎙️ הגדרות קול הקריינות <span class="tag">VO</span></h2>
-    <p class="sub">בחר/י קול, כוונן/י קצב וטון - ושמע/י דוגמה עד שזה נשמע טבעי לך.</p>
+    <h2>🎙️ הגדרות קול וזהות <span class="tag">VO</span></h2>
+    <p class="sub">בחר/י איך לפנות אליך, ואיזה קול תשמע/י.</p>
 
-    <div style="font-size:12px;color:var(--ink-faint);margin:12px 0 6px">קולות עבריים במכשיר שלך (${vs.length}):</div>
+    <div class="nowbar" style="background:rgba(124,156,255,.12);border-color:rgba(124,156,255,.3);color:var(--accent)">👤 איך לפנות אליך?</div>
+    <div class="chips" style="margin-top:8px">
+      ${[['male','👨 בלשון זכר'],['female','👩 בלשון נקבה'],['both','⚖️ שניהם (זכר/נקבה)']].map(([k,t])=>
+        `<button class="chip${userGender()===k?' sel':''}" onclick="setGender('${k}')">${t}</button>`).join('')}
+    </div>
+    <div class="playhint" style="text-align:start">כל ההצהרות, המדיטציות והקריינות יותאמו אליך. דוגמה: <b>${esc('אני משחרר/ת את המתח, ואני רגוע/ה ובטוח/ה')}</b></div>
+
+    <div style="font-size:12px;color:var(--ink-faint);margin:16px 0 6px">קולות עבריים במכשיר שלך (${vs.length}):</div>
     ${list}
 
     <div class="vol" style="margin-top:14px">🐢 קצב <input type="range" min="0.5" max="1.1" step="0.02" value="${c.rate}" oninput="voRate(this.value)"><span id="vorate">${(+c.rate).toFixed(2)}</span></div>
