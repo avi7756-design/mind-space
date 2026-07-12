@@ -264,7 +264,7 @@
     <div class="logo">🌀</div>
     <div>
       <h1>מרחב התת-מודע</h1>
-      <p>לוח אימון מנטלי · גרסה 2.5 · קול טבעי + מקורות עבריים</p>
+      <p>לוח אימון מנטלי · גרסה 2.6 · תיקון קריינות</p>
     </div>
     <div class="hdr-meta">
       <div class="clock" id="clock">--:--</div>
@@ -637,17 +637,47 @@ function ttsSet(g){ ttsGender=g; const c=ttsCfg();
   c.pitch = (g==='male') ? 0.90 : 1.06;   // subtle & natural — NOT the old distorting 0.55/1.45
   save(); toast(g==='male'?'🎙️ טון נמוך יותר':'🎙️ טון רגיל');
   document.querySelectorAll('.ttsg').forEach(b=>b.classList.toggle('sel', b.dataset.g===g)); }
+/* ---- Robust narration: unlock on first tap, no cancel-race, visible errors ---- */
+let ttsUnlocked=false, ttsLastErr='';
+function unlockTTS(){
+  if(ttsUnlocked || !('speechSynthesis' in window)) return;
+  try{ const u=new SpeechSynthesisUtterance(' '); u.volume=0; speechSynthesis.speak(u); ttsUnlocked=true; }catch(e){}
+}
+try{ addEventListener('touchstart',unlockTTS,{once:true,passive:true}); addEventListener('click',unlockTTS,{once:true}); }catch(e){}
+
 function speak(text){
   if(!('speechSynthesis' in window)){ toast('המכשיר לא תומך בהקראה'); return; }
-  speechSynthesis.cancel();
   const c=ttsCfg();
+  // cancel ONLY if something is actually playing — cancel()+speak() back-to-back drops the utterance
+  try{ if(speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel(); }catch(e){}
   const u=new SpeechSynthesisUtterance(text);
   u.lang='he-IL';
   u.rate  = c.rate  || 0.80;   // slow, meditative pace
   u.pitch = c.pitch || 1.0;    // natural pitch — no distortion
+  u.volume= 1;
   const v=pickTtsVoice(); if(v) u.voice=v;
-  u.onend=()=>{ ttsReading=false; }; ttsReading=true;
-  speechSynthesis.speak(u);
+  u.onstart=()=>{ ttsReading=true; ttsLastErr=''; };
+  u.onend  =()=>{ ttsReading=false; };
+  u.onerror=(e)=>{ ttsReading=false; ttsLastErr=e.error||'unknown';
+    if(e.error==='not-allowed'){ toast('🔇 הדפדפן חסם הקראה — גע/י במסך פעם אחת ונסה/י שוב'); ttsUnlocked=false; }
+    else if(e.error!=='interrupted' && e.error!=='canceled'){ toast('⚠️ שגיאת הקראה: '+e.error); }
+  };
+  try{ speechSynthesis.speak(u); }catch(err){ toast('⚠️ ההקראה נכשלה'); }
+  // Chrome/iOS pause bug — keep the queue alive
+  setTimeout(()=>{ try{ if(speechSynthesis.paused) speechSynthesis.resume(); }catch(e){} },250);
+}
+/* self-test: tells the user exactly what's happening on THEIR device */
+function voDiag(){
+  const vs=heVoices();
+  let msg='🔍 אבחון קול:\n';
+  msg+='• תמיכה בהקראה: '+(('speechSynthesis' in window)?'✅ יש':'❌ אין')+'\n';
+  msg+='• קולות עבריים במכשיר: '+vs.length+(vs.length?' ('+vs.map(v=>v.name).join(', ')+')':' ❌ אין! צריך להוריד')+'\n';
+  msg+='• קול נבחר: '+((pickTtsVoice()||{}).name||'—')+'\n';
+  msg+='• קריינות מושתקת: '+(ttsMuted?'🔇 כן — הפעל/י אותה':'✅ לא')+'\n';
+  if(ttsLastErr) msg+='• שגיאה אחרונה: '+ttsLastErr+'\n';
+  if(!vs.length) msg+='\n➡️ הגדרות ← נגישות ← תוכן מדובר ← קולות ← עברית ← הורד/י קול.';
+  alert(msg);
+  speak('בדיקת קול. אם את/ה שומע/ת את המשפט הזה, ההקראה עובדת.');
 }
 function stopSpeak(){ try{ speechSynthesis.cancel(); }catch(e){} ttsReading=false; }
 function ttsControls(){
@@ -1806,6 +1836,7 @@ ROUTES.VO=function(){
     <div class="playhint" style="text-align:start">1.00 = טבעי. נמוך יותר = גברי יותר. <b>אל תרחיק - זה מעוות את הקול.</b></div>
 
     <button class="btn" style="margin-top:14px" onclick="voTest()">🔊 השמע דוגמה</button>
+    <button class="btn" style="background:rgba(255,206,107,.16);color:var(--gold);border:1px solid rgba(255,206,107,.35)" onclick="voDiag()">🔍 אבחון קול (לא שומע/ת? לחץ/י כאן)</button>
     <button class="btn ghost" onclick="voReset()">↩️ אפס לברירת מחדל טבעית</button>
 
     <div class="note" style="margin-top:14px;line-height:1.7">
