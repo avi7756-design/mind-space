@@ -1,0 +1,12 @@
+# Netlify configuration.
+# If the repo root is the monorepo root, set "Base directory" to
+# shopping-assistant in the Netlify UI (or keep this file at that base).
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
