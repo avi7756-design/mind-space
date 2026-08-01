@@ -13,6 +13,7 @@ import { DEFAULT_WEIGHTS } from '../services/scoring';
 import { SEED_ACTIVITY, SEED_ALERTS, SEED_WATCHLIST, SUPPLIERS } from '../data/seed';
 import { evaluatePriceChange, trustChangeAlert } from '../services/alerts';
 import { newId } from '../services/format';
+import { PERSIST_NAME, PERSIST_VERSION, migratePersistedState } from './migrations';
 
 const DEFAULT_CHANNELS: AlertChannelSettings = {
   email: { enabled: true, address: 'user@example.com' },
@@ -186,8 +187,12 @@ export const useAppStore = create<AppState>()(
       },
     }),
     {
-      name: 'shopping-assistant-store',
-      version: 1,
+      name: PERSIST_NAME,
+      version: PERSIST_VERSION,
+      // The migration returns a partial state; zustand shallow-merges it over
+      // the initial state, so anything it omits falls back to the seed defaults.
+      migrate: (persistedState, version) =>
+        migratePersistedState(persistedState, version) as unknown as AppState,
     },
   ),
 );

@@ -9,7 +9,7 @@ export default defineConfig({
     include: ['src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/services/**'],
+      include: ['src/services/**', 'src/store/migrations.ts'],
       reporter: ['text', 'html'],
     },
   },

@@ -349,6 +349,9 @@ export const SEED_WATCHLIST: WatchlistItem[] = [
   },
 ];
 
+/** Referenced by the demo alert below so its figures stay tied to the tracked record. */
+const LG_TV_WATCH = SEED_WATCHLIST.find((w) => w.id === 'w3')!;
+
 export const SEED_ALERTS: AlertRecord[] = [
   {
     id: 'a1',
@@ -374,12 +377,16 @@ export const SEED_ALERTS: AlertRecord[] = [
   {
     id: 'a3',
     type: 'price_drop',
-    title: 'ירידת מחיר משמעותית',
-    message: 'טלוויזיה LG OLED C3 65" ירדה ב‑4.5% ל‑6,290 ₪ (עדיין מעל היעד 5,800 ₪)',
+    title: 'עדכון מחיר כולל',
+    // Derived from the watchlist record itself so the demo text can never drift
+    // away from the data again. No percentage is quoted: the alert is dated five
+    // days ago while the synthetic history has no matching data point, so any
+    // figure here would be invented rather than computed.
+    message: `${LG_TV_WATCH.productName} — המחיר הכולל המעודכן הוא ${LG_TV_WATCH.currentPrice.toLocaleString('he-IL')} ₪ (כולל משלוח), עדיין מעל מחיר היעד ${LG_TV_WATCH.targetPrice.toLocaleString('he-IL')} ₪`,
     channels: ['webhook'],
     status: 'sent',
     createdAt: daysAgo(5),
-    productName: 'טלוויזיה LG OLED C3 65"',
+    productName: LG_TV_WATCH.productName,
     supplierName: 'מחסני חשמל Pay&Go',
   },
 ];

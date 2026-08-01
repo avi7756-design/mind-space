@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { SEED_WATCHLIST, SUPPLIERS, generateOffersForQuery } from './seed';
+import { SEED_ALERTS, SEED_WATCHLIST, SUPPLIERS, generateOffersForQuery } from './seed';
 import { offerTotalCost } from '../services/scoring';
 
 /**
@@ -79,5 +79,47 @@ describe('SEED_WATCHLIST — אינוריאנט העלות הכוללת', () => 
     });
 
     expect(withExtras.length).toBeGreaterThan(0);
+  });
+});
+
+describe('SEED_ALERTS — התאמה לנתוני המעקב', () => {
+  const lgAlert = SEED_ALERTS.find((a) => a.productName?.includes('LG OLED'));
+  const lgWatch = SEED_WATCHLIST.find((w) => w.id === 'w3')!;
+
+  it('קיימת התראת דמו למוצר', () => {
+    expect(lgAlert).toBeDefined();
+  });
+
+  it('הטקסט אינו מכיל עוד את המחיר הישן 6,290', () => {
+    expect(lgAlert!.message).not.toContain('6,290');
+    expect(lgAlert!.message).not.toContain('6290');
+  });
+
+  it('הטקסט מציג את המחיר הכולל המעודכן', () => {
+    expect(lgAlert!.message).toContain(lgWatch.currentPrice.toLocaleString('he-IL'));
+  });
+
+  it('הטקסט מבהיר שמדובר בעלות כוללת', () => {
+    expect(lgAlert!.message).toContain('כולל משלוח');
+  });
+
+  it('אף התראת דמו אינה מציגה אחוז שאינו נגזר מהנתונים', () => {
+    // ההתראה מנוסחת עובדתית ללא אחוז — אין נקודת היסטוריה שתואמת
+    // את מועד ההתראה, וכל אחוז כאן היה מומצא ולא מחושב
+    expect(lgAlert!.message).not.toMatch(/\d+(\.\d+)?%/);
+  });
+
+  it('כל התראה המפנה למוצר במעקב אינה סותרת את מחירו הנוכחי', () => {
+    for (const alert of SEED_ALERTS) {
+      const tracked = SEED_WATCHLIST.find((w) => w.productName === alert.productName);
+      if (!tracked) continue;
+
+      const staleFigures = SEED_WATCHLIST.map((w) => w.currentPrice).filter(
+        (p) => p !== tracked.currentPrice,
+      );
+      for (const stale of staleFigures) {
+        expect(alert.message).not.toContain(`${stale.toLocaleString('he-IL')} ₪`);
+      }
+    }
   });
 });
