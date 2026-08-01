@@ -124,19 +124,48 @@ test('search results: the row action buttons are tappable', async ({ page }) => 
   expect(offenders, `search results — undersized: ${describeOffenders(offenders)}`).toEqual([]);
 });
 
-test('desktop keeps its tighter control rhythm', async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
+/**
+ * The 44px floor is a phone rule. These cases pin down that it applies to a
+ * phone in landscape but NOT to a desktop window that merely happens to be
+ * short — the breakpoint is capped at 900px wide for exactly that reason.
+ */
+const DESKTOP_NOT_INFLATED = [
+  { width: 1440, height: 900, why: 'ordinary desktop' },
+  { width: 1440, height: 450, why: 'wide desktop, short window' },
+  { width: 1024, height: 450, why: 'small laptop, short window' },
+] as const;
+
+for (const c of DESKTOP_NOT_INFLATED) {
+  test(`${c.width}x${c.height} (${c.why}): controls keep the tighter desktop rhythm`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: c.width, height: c.height });
+    await page.goto('/#/watchlist', { waitUntil: 'networkidle' });
+    await page.waitForTimeout(400);
+
+    const deleteButtonHeight = await page.evaluate(() => {
+      const btn = document.querySelector<HTMLElement>('button[aria-label^="הסרת"]');
+      return btn ? btn.getBoundingClientRect().height : null;
+    });
+
+    expect(deleteButtonHeight).not.toBeNull();
+    expect(deleteButtonHeight!, 'desktop must not be inflated by the phone rule').toBeLessThan(
+      MIN_TARGET,
+    );
+  });
+}
+
+test('900x500 is inside the phone breakpoint, so the floor still applies', async ({ page }) => {
+  await page.setViewportSize({ width: 900, height: 500 });
   await page.goto('/#/watchlist', { waitUntil: 'networkidle' });
   await page.waitForTimeout(400);
 
-  // The 44px floor is a phone rule; desktop must not be inflated by it.
-  const deleteButtonHeight = await page.evaluate(() => {
-    const btn = document.querySelector<HTMLElement>('button[aria-label^="הסרת"]');
-    return btn ? btn.getBoundingClientRect().height : null;
-  });
+  const offenders = await findSmallTargets(page, []);
 
-  expect(deleteButtonHeight).not.toBeNull();
-  expect(deleteButtonHeight!).toBeLessThan(MIN_TARGET);
+  expect(
+    offenders,
+    `900x500 — undersized: ${describeOffenders(offenders)}`,
+  ).toEqual([]);
 });
 
 test('icon-only controls carry an accessible name', async ({ page }) => {

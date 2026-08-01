@@ -6,6 +6,53 @@ const DESKTOP = { width: 1440, height: 900 };
 
 const NAV = 'nav[aria-label="ניווט מהיר"]';
 
+/**
+ * The phone breakpoint, stated as a table.
+ *
+ * The second arm of the CSS query is capped at 900px so that a wide-but-short
+ * desktop window is not mistaken for a phone in landscape. These cases pin that
+ * cap down from both sides.
+ */
+const BREAKPOINT_MATRIX = [
+  { width: 390, height: 844, visible: true, why: 'phone portrait' },
+  { width: 844, height: 390, visible: true, why: 'phone landscape' },
+  { width: 900, height: 500, visible: true, why: 'documented inclusive boundary' },
+  { width: 901, height: 500, visible: false, why: 'one px past the width cap' },
+  { width: 1024, height: 450, visible: false, why: 'small laptop, short window' },
+  { width: 1440, height: 450, visible: false, why: 'wide desktop, short window' },
+  { width: 1440, height: 900, visible: false, why: 'ordinary desktop' },
+] as const;
+
+test.describe('bottom navigation — breakpoint matrix', () => {
+  for (const c of BREAKPOINT_MATRIX) {
+    test(`${c.width}x${c.height} (${c.why}): ${c.visible ? 'visible' : 'hidden'}`, async ({
+      page,
+    }) => {
+      await page.setViewportSize({ width: c.width, height: c.height });
+      await page.goto('/#/', { waitUntil: 'networkidle' });
+      await page.waitForTimeout(300);
+
+      const nav = page.locator(NAV);
+      if (c.visible) {
+        await expect(nav).toBeVisible();
+      } else {
+        await expect(nav).toBeHidden();
+      }
+
+      // The reserved padding must agree with the bar's own visibility —
+      // a hidden bar that still reserves space leaves a dead strip.
+      const reserved = await page.evaluate(() =>
+        parseFloat(getComputedStyle(document.querySelector('.content-safe-pb')!).paddingBottom),
+      );
+      if (c.visible) {
+        expect(reserved, 'a visible bar must be cleared by the content').toBeGreaterThan(0);
+      } else {
+        expect(reserved, 'a hidden bar must reserve nothing').toBe(0);
+      }
+    });
+  }
+});
+
 test.describe('bottom navigation — visibility', () => {
   test('shows on a phone in portrait', async ({ page }) => {
     await page.setViewportSize(PHONE);

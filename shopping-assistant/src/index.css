@@ -24,19 +24,32 @@
   }
 
   /*
-   * The phone breakpoint used by the bottom bar and by touch sizing.
-   * Width alone is not enough: a phone in landscape is 844px wide but only
-   * 390px tall, and it still needs the phone treatment. Matching on a short
-   * viewport as well keeps both orientations covered.
+   * THE PHONE BREAKPOINT — repeated verbatim wherever phone treatment applies:
+   *
+   *   (max-width: 639px), (max-width: 900px) and (max-height: 500px)
+   *
+   * Two arms, because width alone is not enough:
+   *   1. narrow viewport            → phone in portrait   (390x844)
+   *   2. narrow AND short viewport  → phone in landscape  (844x390)
+   *
+   * The second arm is capped at 900px on purpose. A bare `(max-height: 500px)`
+   * would also capture a wide-but-short desktop window (1440x450), where the
+   * sidebar is still the right primary navigation.
+   *
+   * `,` binds looser than `and`, so this reads as (1) OR (2).
    */
-  @media (max-width: 639px), (max-height: 500px) {
+  @media (max-width: 639px), (max-width: 900px) and (max-height: 500px) {
     :root {
       --bottom-nav-h: 4rem;
     }
   }
 
-  /* Landscape phones are height-starved — give the bar back some room. */
-  @media (max-height: 500px) {
+  /*
+   * Landscape phones are height-starved — give the bar back some room.
+   * Scoped to the same 900px cap: without it a low desktop window would
+   * reserve padding for a bar that is not shown.
+   */
+  @media (max-width: 900px) and (max-height: 500px) {
     :root {
       --bottom-nav-h: 3.25rem;
     }
@@ -48,7 +61,7 @@
    * tighter rhythm. Text links inside prose are deliberately untouched — only
    * real controls are inflated.
    */
-  @media (max-width: 639px), (max-height: 500px) {
+  @media (max-width: 639px), (max-width: 900px) and (max-height: 500px) {
     button,
     [role='button'],
     a.btn-primary,
@@ -129,7 +142,7 @@
   .bottom-nav {
     display: none;
   }
-  @media (max-width: 639px), (max-height: 500px) {
+  @media (max-width: 639px), (max-width: 900px) and (max-height: 500px) {
     .bottom-nav {
       display: flex;
     }
