@@ -1,7 +1,11 @@
 ﻿const C="mindspace-v12";
+// Cache Storage belongs to the ORIGIN, not to a service worker, so cleanup must
+// be scoped by name. Deleting everything that is not C would wipe the caches of
+// the other app served from this origin (/mind-space/shopping/).
+const P="mindspace-";
 const A=["./","./index.html","./manifest.webmanifest","./icon-180.png","./icon-192.png","./icon-512.png"];
 self.addEventListener("install",e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(A)));self.skipWaiting();});
-self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
+self.addEventListener("activate",e=>{e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x.startsWith(P)&&x!==C).map(x=>caches.delete(x)))).then(()=>self.clients.claim()));});
 self.addEventListener("fetch",e=>{
   const req=e.request;
   // Network-first for HTML/navigation so app updates appear immediately; fall back to cache offline.
