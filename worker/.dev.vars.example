@@ -1,0 +1,3 @@
+# Copy to .dev.vars for `wrangler dev`. NEVER commit the real key.
+# The production key is set with: wrangler secret put ANTHROPIC_API_KEY
+ANTHROPIC_API_KEY=

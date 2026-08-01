@@ -1,0 +1,26 @@
+name = "shopping-product-recognition"
+main = "src/index.ts"
+compatibility_date = "2025-01-15"
+
+# Non-secret configuration only. ANTHROPIC_API_KEY is set with
+#   wrangler secret put ANTHROPIC_API_KEY
+# and must never appear in this file, in .dev.vars.example or in source.
+[vars]
+ANTHROPIC_MODEL = "claude-sonnet-5"
+ALLOWED_ORIGINS = "https://avi7756-design.github.io,http://localhost:4173,http://127.0.0.1:4173"
+MIN_CONFIDENCE = "0.80"
+DAILY_REQUEST_LIMIT = "200"
+MAX_IMAGE_BYTES = "2097152"
+PROVIDER_TIMEOUT_MS = "25000"
+
+# Optional hardening, both off until the bindings exist in the account.
+#
+# [[kv_namespaces]]
+# binding = "RECOGNITION_USAGE"
+# id = "<kv-namespace-id>"
+#
+# [[unsafe.bindings]]
+# name = "RATE_LIMITER"
+# type = "ratelimit"
+# namespace_id = "1001"
+# simple = { limit = 10, period = 60 }
