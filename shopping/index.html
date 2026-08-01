@@ -2,23 +2,41 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the layout paint under the notch and home
+         indicator; the safe-area insets in index.css keep content clear of them.
+         user-scalable / maximum-scale are deliberately omitted so pinch zoom
+         stays available. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta name="description" content="עוזר קניות חכם — מחקר שוק, השוואת ספקים אמינים ומעקב מחירים" />
     <title>עוזר הקניות החכם</title>
-    <link
-      rel="icon"
-      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🛒</text></svg>"
-    />
+
+    <!-- All PWA paths are relative so the same build works at `/` locally and
+         at `/mind-space/shopping/` on GitHub Pages. -->
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <link rel="icon" href="./icons/icon-192.png" sizes="192x192" type="image/png" />
+    <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+
+    <!-- Seeded with the light value; src/pwa/themeColor.ts rewrites it from the
+         stored theme, which can disagree with the OS preference. -->
+    <meta name="theme-color" content="#f1f5f9" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="קניות חכמות" />
+    <!-- black-translucent lets the app paint under the status bar; the safe-area
+         insets from TASK-005 keep content clear of it. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <script type="module" crossorigin src="./assets/index--7rKkxCq.js"></script>
+    <script type="module" crossorigin src="./assets/index-DTcPyaEV.js"></script>
     <link rel="modulepreload" crossorigin href="./assets/react-BB-_XRaL.js">
     <link rel="modulepreload" crossorigin href="./assets/charts-CQFy2kEA.js">
-    <link rel="stylesheet" crossorigin href="./assets/index-C3vDXAv8.css">
+    <link rel="stylesheet" crossorigin href="./assets/index-DVLD8TcD.css">
   </head>
   <body>
     <div id="root"></div>
