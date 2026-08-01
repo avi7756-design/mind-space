@@ -9,6 +9,18 @@
 > אחד (`SupplierDataProvider`) כך שחיבור Backend / סקרייפר / API אמיתי בעתיד אינו דורש
 > שינויים ב‑UI.
 
+## 📚 תיעוד הפרויקט
+
+| מסמך | למי הוא מיועד |
+|---|---|
+| **[`AI_CONTEXT.md`](AI_CONTEXT.md)** | **התחילו כאן** אם אתם (או מודל שפה) ממשיכים את הפיתוח — סדר קריאה, כללים שאסור להפר, מלכודות ידועות |
+| [`PROJECT_HANDOFF.md`](PROJECT_HANDOFF.md) | ההפניה המלאה — 20 סעיפים: ארכיטקטורה, מסכים, באגים, TODO, אבטחה, 110 הצעות לשיפור |
+| [`ARCHITECTURE.md`](ARCHITECTURE.md) | לפני שינוי מבני או חיבור Backend — כולל פירוט מלא של מנוע הדירוג |
+| [`ROADMAP.md`](ROADMAP.md) | תכנון גרסאות מ‑v1.1 ועד v3.1 |
+| [`FEATURE_MATRIX.md`](FEATURE_MATRIX.md) | בדיקה מהירה: האם יכולת X קיימת? |
+| [`CHANGELOG.md`](CHANGELOG.md) | היסטוריית שינויים |
+| [`SCREENSHOTS/`](SCREENSHOTS/) | 17 צילומי מסך של כל המסכים |
+
 ## Features
 
 | Module | Where |
