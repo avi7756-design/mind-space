@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_WEIGHTS, offerTotalCost, rankOffers, scoreOffers } from './scoring';
+import { DEFAULT_WEIGHTS, NEUTRAL_SCORE, offerTotalCost, rankOffers, scoreOffers } from './scoring';
 import type { Offer, Supplier } from '../types';
 
 // ---------- fixtures ----------
@@ -271,21 +271,21 @@ describe('scoreOffers — נרמול העלות', () => {
 
 // ---------- 8. characterization: single offer ----------
 
-describe('scoreOffers — הצעה יחידה (Characterization Test)', () => {
+describe('scoreOffers — ממד שאינו מבחין (Regression: באג B14)', () => {
   /**
-   * מתעד את ההתנהגות הקיימת, לא את הרצויה.
+   * לפני התיקון: כשכל ההצעות חלקו ערך זהה בממד כלשהו (המקרה הקיצוני —
+   * הצעה יחידה), `min === max` והממד קיבל 100. זו הייתה טענת עליונות
+   * במקום שבו אין השוואה כלל, והיא ניפחה את ציון התמורה.
    *
-   * כשיש הצעה אחת, min === max בכל ממד יחסי, ולכן `lowerIsBetter`
-   * ו-`higherIsBetter` מחזירים 100 — מה שמנפח את ציון התמורה.
-   * זהו באג B14 המתועד ב-PROJECT_HANDOFF.md. הבדיקה תיכשל בכוונה
-   * ברגע שהבאג יתוקן, ואז יש לעדכן אותה יחד עם התיקון.
+   * אחרי התיקון: ממד שאינו מבחין מקבל NEUTRAL_SCORE.
    */
-  it('הממדים היחסיים מקבלים 100 (התנהגות נוכחית — באג B14)', () => {
+  it('הצעה יחידה מקבלת ציון נייטרלי בממדים היחסיים, לא 100', () => {
     const [only] = scoreOffers([OFFER_CHEAP], SUPPLIERS, DEFAULT_WEIGHTS);
 
-    expect(only.breakdown.totalCost).toBe(100);
-    expect(only.breakdown.delivery).toBe(100);
-    expect(only.breakdown.warranty).toBe(100);
+    expect(only.breakdown.totalCost).toBe(NEUTRAL_SCORE);
+    expect(only.breakdown.delivery).toBe(NEUTRAL_SCORE);
+    expect(only.breakdown.warranty).toBe(NEUTRAL_SCORE);
+    expect(only.breakdown.totalCost).not.toBe(100);
   });
 
   it('הממדים המוחלטים אינם מושפעים ממספר ההצעות', () => {
@@ -295,10 +295,35 @@ describe('scoreOffers — הצעה יחידה (Characterization Test)', () => {
     expect(only.breakdown.returns).toBeCloseTo(25.67, 1);
   });
 
-  it('ציון התמורה מנופח ביחס לאותה הצעה בתוך סט מלא', () => {
+  it('ציון התמורה של הצעה יחידה אינו מנופח עוד', () => {
     const [alone] = scoreOffers([OFFER_CHEAP], SUPPLIERS, DEFAULT_WEIGHTS);
-    const inSet = scoreOffers(OFFERS, SUPPLIERS, DEFAULT_WEIGHTS).find((o) => o.id === 'o-cheap')!;
 
-    expect(alone.valueScore).toBeGreaterThan(inSet.valueScore);
+    // לפני התיקון: (100*40 + 55*25 + 100*15 + 100*10 + 25.67*10)/100 = 79.1
+    // אחרי:        (50*40  + 55*25 + 50*15  + 50*10  + 25.67*10)/100 = 48.8
+    expect(alone.valueScore).toBeCloseTo(48.8, 1);
+    expect(alone.valueScore).toBeLessThan(79);
+  });
+
+  it('גם בסט מרובה הצעות, ממד אחיד מקבל נייטרלי במקום 100', () => {
+    // שתי הצעות עם אותה אחריות בדיוק — הממד אינו מבחין ביניהן
+    const a = makeOffer({ id: 'a', supplierId: 'mid', basePrice: 1000, warrantyMonths: 12 });
+    const b = makeOffer({ id: 'b', supplierId: 'premium', basePrice: 1200, warrantyMonths: 12 });
+    const scored = scoreOffers([a, b], SUPPLIERS, DEFAULT_WEIGHTS);
+
+    expect(scored.every((o) => o.breakdown.warranty === NEUTRAL_SCORE)).toBe(true);
+    // ובממד שכן מבחין הדירוג נשמר
+    expect(scored.find((o) => o.id === 'a')!.breakdown.totalCost).toBe(100);
+    expect(scored.find((o) => o.id === 'b')!.breakdown.totalCost).toBe(0);
+  });
+
+  it('ממד שאינו מבחין אינו משנה את סדר הדירוג', () => {
+    // כל ההצעות חולקות אחריות וזמן אספקה זהים; רק העלות מבחינה
+    const shared = { warrantyMonths: 12, deliveryDaysMin: 3, deliveryDaysMax: 3 } as const;
+    const cheap = makeOffer({ id: 'c', supplierId: 'mid', basePrice: 800, ...shared });
+    const mid = makeOffer({ id: 'm', supplierId: 'mid', basePrice: 1000, ...shared });
+    const dear = makeOffer({ id: 'd', supplierId: 'mid', basePrice: 1200, ...shared });
+    const ranked = rankOffers(scoreOffers([dear, cheap, mid], SUPPLIERS, DEFAULT_WEIGHTS), 'value');
+
+    expect(idsOf(ranked)).toEqual(['c', 'm', 'd']);
   });
 });

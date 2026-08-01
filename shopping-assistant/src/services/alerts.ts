@@ -31,8 +31,17 @@ export function evaluatePriceChange(
   const channels = enabledChannels(channelSettings);
   const alerts: AlertRecord[] = [];
 
-  const crossedTarget = previousPrice > item.targetPrice && newPrice <= item.targetPrice;
-  const bigDrop = newPrice < previousPrice && (previousPrice - newPrice) / previousPrice >= 0.05;
+  // Both rules share the same precondition: the item was strictly ABOVE its
+  // target before this update. Once an item has reached its target the user has
+  // already been told, so a further drop is not a new headline — and making the
+  // precondition explicit keeps the two rules mutually exclusive by
+  // construction rather than relying on the else-if below to hide the overlap.
+  const wasAboveTarget = previousPrice > item.targetPrice;
+  const crossedTarget = wasAboveTarget && newPrice <= item.targetPrice;
+  const bigDrop =
+    wasAboveTarget &&
+    newPrice < previousPrice &&
+    (previousPrice - newPrice) / previousPrice >= 0.05;
 
   if (crossedTarget) {
     alerts.push({
@@ -68,13 +77,16 @@ export function trustChangeAlert(
   newScore: number,
   channelSettings: AlertChannelSettings,
 ): AlertRecord {
-  const direction = newScore < previousScore ? 'ירד' : 'עלה';
   const channels = enabledChannels(channelSettings);
+  const message =
+    newScore === previousScore
+      ? `ציון האמינות של ${supplierName} נותר ללא שינוי (${newScore})`
+      : `ציון האמינות של ${supplierName} ${newScore < previousScore ? 'ירד' : 'עלה'} מ‑${previousScore} ל‑${newScore}`;
   return {
     id: newId('alert'),
     type: 'trust_change',
     title: 'שינוי בציון אמינות ספק',
-    message: `ציון האמינות של ${supplierName} ${direction} מ‑${previousScore} ל‑${newScore}`,
+    message,
     channels,
     status: channels.length > 0 ? 'sent' : 'pending',
     createdAt: new Date().toISOString(),

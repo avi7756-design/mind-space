@@ -84,10 +84,23 @@ describe('evaluatePriceChange — חציית מחיר היעד', () => {
     expect(alerts).toEqual([]);
   });
 
-  it('כשאין חצייה, ירידה גדולה נופלת לכלל ה‑5% ומייצרת התראה משמעותית', () => {
-    // מתעד את מסלול ה-fallthrough: המחיר הקודם שווה ליעד (לא חצייה),
-    // אך הירידה עולה על 5% — ולכן הכלל השני כן נכנס לפעולה.
+  it('מחיר קודם ששווה ליעד אינו מייצר גם התראת ירידה משמעותית (Regression: באג 3)', () => {
+    // לפני התיקון: prev===target לא נחשב חצייה, אך הירידה של 5.6% נפלה
+    // לכלל ה-5% והפיקה "ירידת מחיר משמעותית" — התראה על פריט שכבר עמד ביעד.
+    // אחרי התיקון: שני הכללים דורשים previousPrice > targetPrice.
     const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 900, 850, ALL_CHANNELS);
+
+    expect(alerts).toEqual([]);
+  });
+
+  it('פריט שכבר מתחת ליעד אינו מייצר התראת ירידה משמעותית', () => {
+    const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 880, 800, ALL_CHANNELS);
+
+    expect(alerts).toEqual([]);
+  });
+
+  it('פריט מעל היעד עדיין מייצר התראת ירידה משמעותית כרגיל', () => {
+    const alerts = evaluatePriceChange(makeItem({ targetPrice: 500 }), 1000, 900, ALL_CHANNELS);
 
     expect(alerts).toHaveLength(1);
     expect(alerts[0].title).toBe('ירידת מחיר משמעותית');
@@ -233,11 +246,15 @@ describe('trustChangeAlert', () => {
     expect(trustChangeAlert('KSP', 88, 92, ALL_CHANNELS).message).toContain('עלה');
   });
 
-  it('ציון זהה מנוסח כ"עלה" (התנהגות נוכחית — אין מקרה "ללא שינוי")', () => {
-    // Characterization: המימוש בודק רק newScore < previousScore,
-    // ולכן שוויון נופל לענף "עלה". ה-store אמנם מונע קריאה כזו,
-    // אך הפונקציה עצמה אינה מגינה על כך.
-    expect(trustChangeAlert('KSP', 90, 90, ALL_CHANNELS).message).toContain('עלה');
+  it('ציון זהה מנוסח כ"ללא שינוי" (Regression: באג 2)', () => {
+    // לפני התיקון: המימוש בדק רק newScore < previousScore, ולכן שוויון
+    // נפל לענף "עלה" ודיווח על עלייה שלא קרתה.
+    const alert = trustChangeAlert('KSP', 90, 90, ALL_CHANNELS);
+
+    expect(alert.message).toContain('ללא שינוי');
+    expect(alert.message).not.toContain('עלה');
+    expect(alert.message).not.toContain('ירד');
+    expect(alert.message).toContain('90');
   });
 
   it('ללא ערוצים פעילים הסטטוס הוא pending', () => {

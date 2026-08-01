@@ -12,15 +12,28 @@ export function offerTotalCost(offer: Offer): number {
   return offer.basePrice + offer.shippingCost + offer.taxEstimate;
 }
 
+/**
+ * Score given to a relative dimension that cannot discriminate — every offer in
+ * the set shares the same value, so no offer is better than another on it.
+ *
+ * A perfect 100 would be a lie: it claims superiority where there is no
+ * comparison at all. The clearest case is a single offer, where every
+ * relative dimension used to read 100 and inflated the composite score.
+ * A neutral midpoint keeps the dimension present without asserting an
+ * advantage, and — because it applies equally to every offer in the set — it
+ * never changes the ranking.
+ */
+export const NEUTRAL_SCORE = 50;
+
 /** Normalize a value to 0–100 where the LOWEST value in the set gets 100. */
 function lowerIsBetter(value: number, min: number, max: number): number {
-  if (max === min) return 100;
+  if (max === min) return NEUTRAL_SCORE;
   return ((max - value) / (max - min)) * 100;
 }
 
 /** Normalize a value to 0–100 where the HIGHEST value in the set gets 100. */
 function higherIsBetter(value: number, min: number, max: number): number {
-  if (max === min) return 100;
+  if (max === min) return NEUTRAL_SCORE;
   return ((value - min) / (max - min)) * 100;
 }
 
