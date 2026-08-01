@@ -14,6 +14,7 @@ import {
 import SectionHeader from '../components/ui/SectionHeader';
 import EmptyState from '../components/ui/EmptyState';
 import ComparisonTable from '../components/compare/ComparisonTable';
+import ImageSearchInput from '../components/search/ImageSearchInput';
 import ScoreBar from '../components/ui/ScoreBar';
 import { getSupplierDataProvider } from '../services/api';
 import { rankOffers, scoreOffers } from '../services/scoring';
@@ -159,6 +160,8 @@ export default function SearchPage() {
           חיפוש שוק
         </button>
       </form>
+
+      <ImageSearchInput />
 
       {searchHistory.length > 0 && !searched && (
         <div className="flex flex-wrap items-center gap-2 text-sm">

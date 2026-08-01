@@ -134,3 +134,25 @@ export interface ActivityEntry {
   message: string;
   createdAt: string;
 }
+
+// ---------- Image input (client-side only; the recognition backend lands in a later task) ----------
+
+/**
+ * A user-supplied photo after local resizing and compression. The `blob` is the
+ * payload a future recognition endpoint will receive; nothing here is persisted.
+ */
+export interface ProcessedImage {
+  blob: Blob;
+  /** Object URL for on-screen preview — must be revoked when replaced or unmounted. */
+  previewUrl: string;
+  width: number;
+  height: number;
+  mimeType: string;
+  originalFileName: string;
+  originalSize: number;
+  processedSize: number;
+  /** Encoder quality actually used (1 for lossless output). */
+  quality: number;
+  /** How many encode passes ran before the size target was met or the loop stopped. */
+  compressionPasses: number;
+}
