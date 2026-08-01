@@ -7,6 +7,7 @@ import PriceHistoryChart from '../components/charts/PriceHistoryChart';
 import Badge from '../components/ui/Badge';
 import { useAppStore } from '../store/useAppStore';
 import { formatCurrency, formatDateTime } from '../services/format';
+import { hasReachedTarget, totalSavings } from '../services/watchlist';
 import { ACTIVITY_META } from './ActivityPage';
 
 export default function DashboardPage() {
@@ -16,11 +17,8 @@ export default function DashboardPage() {
   const suppliers = useAppStore((s) => s.suppliers);
 
   const stats = useMemo(() => {
-    const totalSaving = watchlist.reduce((sum, item) => {
-      const first = item.history[0]?.price ?? item.currentPrice;
-      return sum + Math.max(0, first - item.currentPrice);
-    }, 0);
-    const belowTarget = watchlist.filter((w) => w.currentPrice <= w.targetPrice).length;
+    const totalSaving = totalSavings(watchlist);
+    const belowTarget = watchlist.filter(hasReachedTarget).length;
     const verified = suppliers.filter((s) => s.verification === 'verified' && !s.excluded).length;
     const searches = activity.filter((a) => a.type === 'search').length;
     return { totalSaving, belowTarget, verified, searches };
@@ -147,7 +145,7 @@ export default function DashboardPage() {
               </thead>
               <tbody>
                 {watchlist.slice(0, 5).map((item) => {
-                  const reached = item.currentPrice <= item.targetPrice;
+                  const reached = hasReachedTarget(item);
                   return (
                     <tr key={item.id} className="border-b border-slate-100 last:border-0 dark:border-slate-800/60">
                       <td className="py-2.5 pl-4 font-medium">{item.productName}</td>

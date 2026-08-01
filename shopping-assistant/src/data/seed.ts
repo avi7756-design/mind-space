@@ -306,12 +306,20 @@ function buildHistory(days: number, start: number, end: number, wobble: number):
   return points;
 }
 
+/**
+ * Every price below is a TOTAL purchase cost (base + shipping + tax) matching
+ * the catalog offer for that supplier — see `WatchlistItem` in types/index.ts.
+ * `seed.test.ts` enforces this against the catalog, so a future catalog edit
+ * that breaks the invariant fails the suite instead of silently skewing the
+ * savings figures.
+ */
 export const SEED_WATCHLIST: WatchlistItem[] = [
   {
     id: 'w1',
     productName: 'אוזניות Sony WH-1000XM5',
     query: 'אוזניות Sony WH-1000XM5',
     supplierId: 'ksp',
+    // KSP: 1190 + 0 shipping + 0 tax
     currentPrice: 1190,
     targetPrice: 1050,
     history: buildHistory(90, 1420, 1190, 60),
@@ -322,6 +330,7 @@ export const SEED_WATCHLIST: WatchlistItem[] = [
     productName: 'מכונת קפה DeLonghi Magnifica S',
     query: 'מכונת קפה DeLonghi',
     supplierId: 'payngo',
+    // Pay&Go: 1590 + 0 shipping + 0 tax
     currentPrice: 1590,
     targetPrice: 1600,
     history: buildHistory(60, 1780, 1590, 50),
@@ -332,9 +341,10 @@ export const SEED_WATCHLIST: WatchlistItem[] = [
     productName: 'טלוויזיה LG OLED C3 65"',
     query: 'טלוויזיה LG OLED C3',
     supplierId: 'payngo',
-    currentPrice: 6290,
+    // Pay&Go: 6290 + 99 shipping + 0 tax
+    currentPrice: 6389,
     targetPrice: 5800,
-    history: buildHistory(120, 7490, 6290, 180),
+    history: buildHistory(120, 7490, 6389, 180),
     createdAt: daysAgo(120),
   },
 ];

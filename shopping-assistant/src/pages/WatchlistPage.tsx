@@ -7,6 +7,7 @@ import Badge from '../components/ui/Badge';
 import PriceHistoryChart from '../components/charts/PriceHistoryChart';
 import { useAppStore } from '../store/useAppStore';
 import { formatCurrency, formatDate } from '../services/format';
+import { changePctSinceStart, hasReachedTarget } from '../services/watchlist';
 
 export default function WatchlistPage() {
   const watchlist = useAppStore((s) => s.watchlist);
@@ -50,9 +51,8 @@ export default function WatchlistPage() {
         <div className="grid gap-5 xl:grid-cols-2">
           {watchlist.map((item) => {
             const supplier = suppliers.find((s) => s.id === item.supplierId);
-            const reached = item.currentPrice <= item.targetPrice;
-            const first = item.history[0]?.price ?? item.currentPrice;
-            const changePct = first > 0 ? (((item.currentPrice - first) / first) * 100).toFixed(1) : '0';
+            const reached = hasReachedTarget(item);
+            const changePct = changePctSinceStart(item).toFixed(1);
             return (
               <div key={item.id} className="card min-w-0 p-5">
                 <div className="flex items-start justify-between gap-3">

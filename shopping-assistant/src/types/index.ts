@@ -85,8 +85,15 @@ export interface WatchlistItem {
   productName: string;
   query: string;
   supplierId: string;
+  /**
+   * The latest TOTAL purchase cost of the tracked offer —
+   * `basePrice + shippingCost + taxEstimate`, i.e. what the buyer actually pays.
+   * Never a base price alone. Always derive it via `offerTotalCost(offer)`.
+   */
   currentPrice: number;
+  /** Target expressed in the same total-cost units as `currentPrice`. */
   targetPrice: number;
+  /** Price timeline in the same total-cost units; the last point equals `currentPrice`. */
   history: PricePoint[];
   createdAt: string;
 }

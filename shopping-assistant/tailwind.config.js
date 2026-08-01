@@ -1,6 +1,8 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  content: ['./index.html', './src/**/*.{ts,tsx}'],
+  // Test files are excluded so that fixture strings can never leak class names
+  // into the production CSS bundle.
+  content: ['./index.html', './src/**/*.{ts,tsx}', '!./src/**/*.test.{ts,tsx}'],
   darkMode: 'class',
   theme: {
     extend: {

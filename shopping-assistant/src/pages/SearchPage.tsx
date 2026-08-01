@@ -18,6 +18,7 @@ import ScoreBar from '../components/ui/ScoreBar';
 import { getSupplierDataProvider } from '../services/api';
 import { rankOffers, scoreOffers } from '../services/scoring';
 import { exportComparisonCsv, exportComparisonPdf } from '../services/export';
+import { watchlistEntryFromOffer } from '../services/watchlist';
 import { useAppStore } from '../store/useAppStore';
 import type { Offer, RankingMode, ScoredOffer } from '../types';
 import { formatCurrency } from '../services/format';
@@ -102,13 +103,7 @@ export default function SearchPage() {
   }
 
   function trackOffer(offer: ScoredOffer) {
-    addToWatchlist({
-      productName: offer.productName,
-      query: searched,
-      supplierId: offer.supplierId,
-      currentPrice: offer.totalCost,
-      targetPrice: Math.round(offer.totalCost * 0.9),
-    });
+    addToWatchlist(watchlistEntryFromOffer(offer, searched));
     showToast(`"${offer.productName}" נוסף למעקב מחירים אצל ${offer.supplier.name}`);
   }
 
