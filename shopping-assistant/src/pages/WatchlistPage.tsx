@@ -63,9 +63,11 @@ export default function WatchlistPage() {
                     </div>
                   </div>
                   <button
+                    type="button"
                     onClick={() => removeFromWatchlist(item.id)}
-                    className="text-slate-400 transition hover:text-rose-500"
+                    className="flex items-center justify-center text-slate-400 transition hover:text-rose-500"
                     title="הסרה מהמעקב"
+                    aria-label={`הסרת ${item.productName} ממעקב המחירים`}
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -83,6 +85,11 @@ export default function WatchlistPage() {
                         <input
                           autoFocus
                           type="number"
+                          inputMode="decimal"
+                          enterKeyHint="done"
+                          min={1}
+                          step={1}
+                          aria-label="מחיר יעד חדש"
                           className="input !w-28 !py-1"
                           value={editValue}
                           onChange={(e) => setEditValue(e.target.value)}

@@ -145,6 +145,11 @@ export default function SearchPage() {
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            aria-label="חיפוש מוצר להשוואה"
             placeholder='תארו מה אתם מחפשים, לדוגמה: "אוזניות אלחוטיות עם סינון רעשים עד 1,500 ש״ח"'
             className="input pr-9"
           />

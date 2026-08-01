@@ -32,6 +32,10 @@ export default function Topbar({ onOpenSidebar }: Props) {
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          type="search"
+          inputMode="search"
+          enterKeyHint="search"
+          autoComplete="off"
           placeholder="חפשו כל מוצר — לדוגמה: אוזניות Sony, מכונת קפה, אייפון 15…"
           className="input pr-9"
           aria-label="חיפוש מוצר"

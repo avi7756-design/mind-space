@@ -133,6 +133,10 @@ export default function SettingsPage() {
               {draftChannels.email.enabled && (
                 <input
                   type="email"
+                  inputMode="email"
+                  autoComplete="email"
+                  enterKeyHint="done"
+                  aria-label="כתובת אימייל להתראות"
                   dir="ltr"
                   placeholder="you@example.com"
                   className="input mt-3"
@@ -164,6 +168,10 @@ export default function SettingsPage() {
               </label>
               {draftChannels.telegram.enabled && (
                 <input
+                  inputMode="numeric"
+                  autoComplete="off"
+                  enterKeyHint="done"
+                  aria-label="מזהה צ׳אט בטלגרם"
                   dir="ltr"
                   placeholder="Chat ID (למשל 123456789)"
                   className="input mt-3"
@@ -192,6 +200,11 @@ export default function SettingsPage() {
               </label>
               {draftChannels.webhook.enabled && (
                 <input
+                  type="url"
+                  inputMode="url"
+                  autoComplete="off"
+                  enterKeyHint="done"
+                  aria-label="כתובת Webhook להתראות"
                   dir="ltr"
                   placeholder="https://example.com/webhooks/price-alerts"
                   className="input mt-3"

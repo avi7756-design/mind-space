@@ -17,6 +17,45 @@
     --safe-right: env(safe-area-inset-right, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);
     --safe-left: env(safe-area-inset-left, 0px);
+
+    /* Height reserved for the bottom navigation. Zero wherever the bar is not
+       shown, so the same padding rule works on every breakpoint. */
+    --bottom-nav-h: 0px;
+  }
+
+  /*
+   * The phone breakpoint used by the bottom bar and by touch sizing.
+   * Width alone is not enough: a phone in landscape is 844px wide but only
+   * 390px tall, and it still needs the phone treatment. Matching on a short
+   * viewport as well keeps both orientations covered.
+   */
+  @media (max-width: 639px), (max-height: 500px) {
+    :root {
+      --bottom-nav-h: 4rem;
+    }
+  }
+
+  /* Landscape phones are height-starved — give the bar back some room. */
+  @media (max-height: 500px) {
+    :root {
+      --bottom-nav-h: 3.25rem;
+    }
+  }
+
+  /*
+   * Touch sizing. Apple asks for 44x44 CSS px, Material for 48dp; 44 is the
+   * binding minimum here. Applied on phones only so the desktop UI keeps its
+   * tighter rhythm. Text links inside prose are deliberately untouched — only
+   * real controls are inflated.
+   */
+  @media (max-width: 639px), (max-height: 500px) {
+    button,
+    [role='button'],
+    a.btn-primary,
+    a.btn-ghost {
+      min-width: 44px;
+      min-height: 44px;
+    }
   }
 
   html {
@@ -72,9 +111,28 @@
     padding-top: calc(0.75rem + var(--safe-top));
   }
 
-  /* Floating toast, lifted clear of the home indicator. */
+  /*
+   * Content column: clear of the home indicator AND of the bottom bar, so the
+   * last card is never trapped underneath it. --bottom-nav-h is 0 on desktop,
+   * which makes this a single rule for every breakpoint.
+   */
+  .content-safe-pb {
+    padding-bottom: calc(var(--bottom-nav-h) + var(--safe-bottom));
+  }
+
+  /* Floating toast, lifted clear of both the home indicator and the bottom bar. */
   .toast-safe {
-    bottom: calc(1.25rem + var(--safe-bottom));
+    bottom: calc(1.25rem + var(--bottom-nav-h) + var(--safe-bottom));
+  }
+
+  /* Shown only where --bottom-nav-h is non-zero; see the breakpoint above. */
+  .bottom-nav {
+    display: none;
+  }
+  @media (max-width: 639px), (max-height: 500px) {
+    .bottom-nav {
+      display: flex;
+    }
   }
 
   .card {

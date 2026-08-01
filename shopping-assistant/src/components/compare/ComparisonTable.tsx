@@ -89,14 +89,17 @@ export default function ComparisonTable({ offers, bestOfferId, onTrack }: Props)
                       rel="noopener noreferrer"
                       className="btn-ghost !px-2 !py-1.5"
                       title="מעבר לעמוד המוצר אצל הספק"
+                      aria-label={`מעבר לעמוד המוצר אצל ${offer.supplier.name}`}
                     >
                       <ExternalLink className="h-4 w-4" />
                     </a>
                     {onTrack && (
                       <button
+                        type="button"
                         onClick={() => onTrack(offer)}
                         className="btn-ghost !px-2 !py-1.5"
                         title="הוספה למעקב מחירים"
+                        aria-label={`הוספת ההצעה של ${offer.supplier.name} למעקב מחירים`}
                       >
                         <Eye className="h-4 w-4" />
                       </button>
