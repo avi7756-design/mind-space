@@ -31,15 +31,17 @@ export function evaluatePriceChange(
   const channels = enabledChannels(channelSettings);
   const alerts: AlertRecord[] = [];
 
-  // Both rules share the same precondition: the item was strictly ABOVE its
-  // target before this update. Once an item has reached its target the user has
-  // already been told, so a further drop is not a new headline — and making the
-  // precondition explicit keeps the two rules mutually exclusive by
-  // construction rather than relying on the else-if below to hide the overlap.
-  const wasAboveTarget = previousPrice > item.targetPrice;
-  const crossedTarget = wasAboveTarget && newPrice <= item.targetPrice;
+  // Crossing the target is reported only on the update that actually crosses it:
+  // the item must have been strictly above the target beforehand.
+  const crossedTarget = previousPrice > item.targetPrice && newPrice <= item.targetPrice;
+
+  // A significant drop stays worth reporting even once the item is already below
+  // its target — a further 20% fall is high-value information, not noise.
+  // The single exclusion is the boundary case where the previous price sat
+  // exactly on the target: that update is neither a crossing nor a drop the user
+  // has not effectively already been told about.
   const bigDrop =
-    wasAboveTarget &&
+    previousPrice !== item.targetPrice &&
     newPrice < previousPrice &&
     (previousPrice - newPrice) / previousPrice >= 0.05;
 

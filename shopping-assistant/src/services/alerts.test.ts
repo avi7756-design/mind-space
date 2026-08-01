@@ -69,8 +69,9 @@ describe('evaluatePriceChange — חציית מחיר היעד', () => {
     expect(alerts[0].title).toBe('ירידת מחיר מתחת ליעד');
   });
 
-  it('אינו מתריע כשהמחיר כבר היה מתחת ליעד לפני השינוי', () => {
-    // previousPrice > targetPrice הוא תנאי מפורש — מונע התראה חוזרת בכל סבב
+  it('אינו מפיק התראת חצייה כשהמחיר כבר היה מתחת ליעד', () => {
+    // previousPrice > targetPrice הוא תנאי מפורש — מונע התראת חצייה חוזרת
+    // בכל סבב. כאן גם הירידה (1.1%) מתחת לסף ה‑5%, ולכן אין התראה כלל.
     const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 880, 870, ALL_CHANNELS);
 
     expect(alerts).toEqual([]);
@@ -93,10 +94,13 @@ describe('evaluatePriceChange — חציית מחיר היעד', () => {
     expect(alerts).toEqual([]);
   });
 
-  it('פריט שכבר מתחת ליעד אינו מייצר התראת ירידה משמעותית', () => {
-    const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 880, 800, ALL_CHANNELS);
+  it('פריט שכבר מתחת ליעד כן מתריע על ירידה משמעותית נוספת', () => {
+    // החלטת מוצר: ירידה נוספת של ~20% היא מידע בעל ערך גבוה ואין להשתיק אותה,
+    // גם אם המשתמש כבר קיבל בעבר את התראת חציית היעד
+    const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 880, 700, ALL_CHANNELS);
 
-    expect(alerts).toEqual([]);
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].title).toBe('ירידת מחיר משמעותית');
   });
 
   it('פריט מעל היעד עדיין מייצר התראת ירידה משמעותית כרגיל', () => {
@@ -104,6 +108,37 @@ describe('evaluatePriceChange — חציית מחיר היעד', () => {
 
     expect(alerts).toHaveLength(1);
     expect(alerts[0].title).toBe('ירידת מחיר משמעותית');
+  });
+
+  it('שוויון ליעד הוא החריג היחיד — ירידה של 11% אינה מתריעה', () => {
+    const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 900, 800, ALL_CHANNELS);
+
+    expect(alerts).toEqual([]);
+  });
+
+  it('מטריצת המדיניות המלאה', () => {
+    const run = (target: number, prev: number, next: number) =>
+      evaluatePriceChange(makeItem({ targetPrice: target }), prev, next, ALL_CHANNELS);
+
+    // מעל היעד -> חוצה אותו: התראת יעד בלבד
+    expect(run(900, 1000, 880).map((a) => a.title)).toEqual(['ירידת מחיר מתחת ליעד']);
+    // מעל היעד, ירידה >5% שאינה חוצה: ירידה משמעותית
+    expect(run(500, 1000, 900).map((a) => a.title)).toEqual(['ירידת מחיר משמעותית']);
+    // מתחת ליעד, ירידה נוספת >5%: ירידה משמעותית
+    expect(run(900, 880, 700).map((a) => a.title)).toEqual(['ירידת מחיר משמעותית']);
+    // שווה ליעד: שקט
+    expect(run(900, 900, 800)).toEqual([]);
+    // מתחת ליעד, ירידה <5%: שקט
+    expect(run(900, 880, 870)).toEqual([]);
+    // עלייה: שקט
+    expect(run(900, 880, 950)).toEqual([]);
+  });
+
+  it('חצייה שגם עומדת בכלל ה‑5% מפיקה התראה אחת בלבד', () => {
+    const alerts = evaluatePriceChange(makeItem({ targetPrice: 900 }), 1000, 700, ALL_CHANNELS);
+
+    expect(alerts).toHaveLength(1);
+    expect(alerts[0].title).toBe('ירידת מחיר מתחת ליעד');
   });
 });
 
