@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Mail, RotateCcw, Save, Send, Webhook } from 'lucide-react';
 import SectionHeader from '../components/ui/SectionHeader';
+import InstallCard from '../components/settings/InstallCard';
 import { useAppStore } from '../store/useAppStore';
 import { DEFAULT_WEIGHTS } from '../services/scoring';
 import type { AlertChannelSettings, ScoreWeights } from '../types';
@@ -218,6 +219,8 @@ export default function SettingsPage() {
           </div>
         </div>
       </div>
+
+      <InstallCard />
 
       {/* Demo data reset */}
       <div className="card flex flex-wrap items-center justify-between gap-3 p-5">

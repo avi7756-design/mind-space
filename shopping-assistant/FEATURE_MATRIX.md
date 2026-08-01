@@ -323,6 +323,34 @@
 
 ---
 
+## 16. PWA והתקנה
+
+| יכולת | סטטוס | פירוט |
+|---|---|---|
+| Web App Manifest | ✅ | `public/manifest.webmanifest`, RTL + עברית, `display: standalone` |
+| נתיבים יחסיים ב‑manifest | ✅ | `start_url` ו‑`scope` הם `./` — עובד תחת `/mind-space/shopping/` |
+| אייקונים 192 / 512 | ✅ | מקוריים, נוצרו בפרויקט |
+| אייקון maskable | ✅ | 512×512 עם safe padding |
+| `apple-touch-icon` | ✅ | 180×180 |
+| Service Worker ייעודי | ✅ | `public/sw.js`, scope מוגבל ל‑Shopping |
+| Cache prefix מבודד | ✅ | `shopping-assistant-` — לא נוגע במטמוני mind‑space |
+| ניווט network‑first | ✅ | fallback ל‑shell של Shopping בלבד |
+| נכסים cache‑first | ✅ | same‑origin ובתוך ה‑base בלבד |
+| בקשות חיצוניות network‑only | ✅ | קישורי ספקים וגופנים לא נכנסים למטמון |
+| רישום ב‑production בלבד | ✅ | `src/pwa/registerServiceWorker.ts` |
+| כשל רישום אינו מפיל את האפליקציה | ✅ | |
+| `theme-color` דינמי | ✅ | מסונכרן עם ה‑theme השמור, לא עם העדפת ה‑OS |
+| כפתור התקנה (Chrome/Android) | ✅ | בהגדרות, מופיע רק עם `beforeinstallprompt` |
+| הוראות התקנה ל‑iOS | ✅ | ללא הבטחה שההתקנה אוטומטית |
+| זיהוי מצב standalone | ✅ | media query + `navigator.standalone` |
+| Offline shell | ✅ | דשבורד, חיפוש, מעקב והגדרות נפתחים |
+| **ה‑SW הראשי מוחק את המטמון שלנו** | ⚠️ **פתוח** | דורש שינוי ב‑`sw.js` בשורש. ראו `PWA_AUDIT.md` |
+| אימות ב‑GitHub Pages אמיתי | ❌ | לא בוצע — אין Preview URL ללא שינוי `main` |
+| Push notifications | ❌ | 📅 v2.1 |
+| Background sync | ❌ | 📅 עתידי |
+
+---
+
 ## סיכום מספרי
 
 | קטגוריה | ✅ | 🟡 | 🔵 | ❌ |
@@ -342,7 +370,8 @@
 | Backend | 3 | 0 | 0 | 9 |
 | AI | 0 | 0 | 0 | 9 |
 | אבטחה | 6 | 0 | 0 | 7 |
-| **סה״כ** | **91** | **10** | **5** | **93** |
+| PWA והתקנה | 17 | 0 | 0 | 3 |
+| **סה״כ** | **108** | **11** | **5** | **96** |
 
 **הפרשנות:** המוצר **שלם בשכבת החוויה והלוגיקה** (חיפוש, דירוג, ספקים, דשבורד, ממשק —
 רובם ✅) ו**ריק בשכבת התשתית** (Backend, AI, בדיקות, אבטחת שרת — רובם ❌).

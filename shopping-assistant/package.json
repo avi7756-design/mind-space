@@ -14,7 +14,8 @@
     "typecheck": "tsc -b --noEmit",
     "typecheck:e2e": "tsc -p tsconfig.e2e.json --noEmit",
     "test:e2e": "playwright test",
-    "test:e2e:ui": "playwright test --ui"
+    "test:e2e:ui": "playwright test --ui",
+    "test:pwa": "node scripts/verify-base-path.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.441.0",

@@ -88,7 +88,7 @@
 | 1.2.3 | הגדלת אזורי מגע ל‑44px | i2, a1 | S |
 | 1.2.4 | `100dvh` במקום `100vh` | i3 | XS |
 | 1.2.5 | הגדלת `font-size` בשדות ל‑16px (מונע זום ב‑Safari) | i5 | XS |
-| 1.2.6 | PWA: manifest + service worker + אייקונים | i4, a3 | M |
+| 1.2.6 | ~~PWA: manifest + service worker + אייקונים~~ | i4, a3 | ✅ **הושלם ב‑TASK-007** |
 | 1.2.7 | `theme-color` דינמי לפי מצב תצוגה | a2 | XS |
 | 1.2.8 | `aria-label` למחוונים | A1 | XS |
 | 1.2.9 | `<caption>` ו‑`scope` לטבלה | A2 | S |

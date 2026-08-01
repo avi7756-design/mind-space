@@ -9,12 +9,16 @@ import AlertsPage from './pages/AlertsPage';
 import ActivityPage from './pages/ActivityPage';
 import SettingsPage from './pages/SettingsPage';
 import { useAppStore } from './store/useAppStore';
+import { syncThemeColor } from './pwa/themeColor';
 
 export default function App() {
   const theme = useAppStore((s) => s.theme);
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark');
+    // The installed app's system chrome follows the same source of truth as
+    // the page itself, not the OS preference.
+    syncThemeColor(theme);
   }, [theme]);
 
   return (

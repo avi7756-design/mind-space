@@ -29,6 +29,54 @@
 
 ---
 
+## [1.1.0] — 2026-08-01
+
+### נוסף — PWA (TASK-007)
+
+* **Web App Manifest** — `public/manifest.webmanifest`. עברית, RTL,
+  `display: standalone`, `id` יציב, קטגוריות ותיאור. `start_url` ו‑`scope`
+  יחסיים (`./`), כך שהם נפתרים נכון גם תחת `/mind-space/shopping/`.
+* **אייקונים מקוריים** — 192×192, 512×512, maskable 512×512 עם safe padding,
+  ו‑`apple-touch-icon` 180×180. נוצרו בפרויקט; אין שימוש בלוגו של אף גורם אחר.
+* **Service Worker ייעודי** — `public/sw.js`, כתוב ידנית ללא Workbox.
+  * scope מוגבל ל‑Shopping בלבד; ה‑base נגזר מ‑`self.location`, ללא URL קשיח.
+  * cache prefix `shopping-assistant-`; ב‑`activate` נמחקים רק מטמונים עם
+    ה‑prefix הזה — מטמוני mind‑space לעולם אינם נוגעים.
+  * ניווט network‑first עם fallback למעטפת של Shopping, מתוך המטמון הייעודי
+    בלבד (`cache.match` ולא `caches.match` שסורק את כל ה‑origin).
+  * נכסים cache‑first, GET ו‑same‑origin ובתוך ה‑base בלבד.
+  * בקשות חיצוניות — קישורי ספקים, גופנים, APIs עתידיים — network‑only.
+* **רישום** — `src/pwa/registerServiceWorker.ts`. production בלבד, scope מפורש,
+  כשל אינו מפיל את האפליקציה, ואין `unregister` לאף worker אחר.
+* **`theme-color` דינמי** — מסונכרן עם ה‑theme השמור ב‑store ולא עם העדפת
+  מערכת ההפעלה, שיכולה לסתור אותה.
+* **התקנה** — כרטיס בהגדרות. כפתור מופיע רק אחרי `beforeinstallprompt`;
+  ב‑iOS מוצגות הוראות Safari; במצב standalone מוצג סטטוס "מותקן". ללא pop‑up.
+* **`PWA_AUDIT.md`** — בדיקת ה‑SW הקיים לפני השינוי, כולל הממצא שה‑SW בשורש
+  מוחק כל מטמון בדומיין שאינו שלו.
+
+### נוסף — בדיקות
+
+* 38 בדיקות יחידה ל‑PWA: פתרון נתיבים, רישום, זיהוי iOS/standalone,
+  מצבי התקנה, וניתוח סטטי של ה‑Service Worker.
+* 17 בדיקות E2E: manifest, אייקונים, scope, `theme-color`, התקנה, offline.
+* `npm run test:pwa` — מגיש את הבנייה מ‑`/mind-space/shopping/` ומאמת 15 בדיקות
+  שאי אפשר לבדוק בשורש: `start_url`, ה‑scope הרשום, וזהות המעטפת ב‑offline.
+
+### תוקן
+
+* רשימת שלבי ההתקנה ב‑iOS — הפריט הראשון הוצג ללא מספר, כי `flex` על `<li>`
+  מנתק את סימון הרשימה.
+
+### מגבלה ידועה
+
+ה‑Service Worker בשורש המאגר מוחק כל מטמון ב‑origin שאינו שלו, ולכן ימחק גם את
+המטמון של Shopping בכל פריסה של mind‑space. התוצאה: הביקור המקוון הבא מאכלס
+אותו מחדש. התיקון דורש שינוי בן שורה אחת ב‑`sw.js` הראשי — מחוץ להיקף המשימה.
+ראו `PWA_AUDIT.md` §3.
+
+---
+
 ## [1.0.1] — 2026-08-01
 
 ### תיעוד
