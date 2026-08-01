@@ -6,3 +6,5 @@ dist
 *.tsbuildinfo
 dist-artifact
 coverage
+test-results
+playwright-report

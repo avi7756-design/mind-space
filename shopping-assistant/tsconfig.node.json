@@ -11,5 +11,9 @@
     "noEmit": true,
     "strict": true
   },
-  "include": ["vite.config.ts"]
+  // playwright.config.ts and e2e/ are intentionally excluded: they need DOM +
+  // Node types that this project does not carry, and Playwright compiles them
+  // itself at run time. Adding them here would mean pulling in @types/node,
+  // which is outside this task's dependency scope.
+  "include": ["vite.config.ts", "vitest.config.ts"]
 }

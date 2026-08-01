@@ -2,7 +2,14 @@
 <html lang="he" dir="rtl">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- viewport-fit=cover lets the layout paint under the notch and home
+         indicator; the safe-area insets in index.css keep content clear of them.
+         user-scalable / maximum-scale are deliberately omitted so pinch zoom
+         stays available. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <meta name="description" content="עוזר קניות חכם — מחקר שוק, השוואת ספקים אמינים ומעקב מחירים" />
     <title>עוזר הקניות החכם</title>
     <link

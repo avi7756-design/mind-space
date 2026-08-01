@@ -3,15 +3,80 @@
 @tailwind utilities;
 
 @layer base {
+  /*
+   * Safe-area insets, resolved once here and consumed through these variables
+   * everywhere else. `env()` returns nothing on browsers/devices without a
+   * notch, so each one carries an explicit 0px fallback.
+   *
+   * They are physical (top/right/bottom/left), NOT logical — the notch does not
+   * flip with an RTL document, so consumers must use padding-left/right rather
+   * than padding-inline-start/end.
+   */
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-right: env(safe-area-inset-right, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+    --safe-left: env(safe-area-inset-left, 0px);
+  }
+
   html {
     @apply antialiased;
+    /* With viewport-fit=cover the area behind the insets paints from the
+       canvas background, so html must carry it too — otherwise a notch or the
+       home-indicator strip shows white in dark mode.
+       NOTE: `dark:` cannot be used here. With darkMode:'class' Tailwind emits
+       `.dark &`, a DESCENDANT selector, and the `dark` class lives on <html>
+       itself — so it would never match. The variant is written out by hand. */
+    @apply bg-slate-100;
   }
+  html.dark {
+    @apply bg-slate-950;
+  }
+
   body {
     @apply bg-slate-100 text-slate-900 dark:bg-slate-950 dark:text-slate-100;
   }
 }
 
 @layer components {
+  /*
+   * The single height owner of the app shell.
+   * 100vh first as the baseline; 100dvh overrides it where supported so the
+   * shell tracks Safari's collapsing address bar instead of overshooting.
+   */
+  .app-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Horizontal insets — landscape notch on either physical edge. */
+  .safe-px {
+    padding-left: var(--safe-left);
+    padding-right: var(--safe-right);
+  }
+
+  /* Vertical insets, applied where the element owns that edge. */
+  .safe-pt {
+    padding-top: var(--safe-top);
+  }
+  .safe-pb {
+    padding-bottom: var(--safe-bottom);
+  }
+
+  /*
+   * The top bar is sticky at the very top, so it owns the notch. Its own
+   * vertical rhythm (0.75rem) is folded into the calc rather than layered on
+   * top of a `pt-3` utility, which would win the cascade and drop the inset.
+   */
+  .topbar-safe {
+    padding-top: calc(0.75rem + var(--safe-top));
+  }
+
+  /* Floating toast, lifted clear of the home indicator. */
+  .toast-safe {
+    bottom: calc(1.25rem + var(--safe-bottom));
+  }
+
   .card {
     @apply rounded-2xl border border-slate-200 bg-white shadow-card dark:border-slate-800 dark:bg-slate-900;
   }
@@ -23,5 +88,17 @@
   }
   .btn-ghost {
     @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2 text-sm font-medium transition hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800;
+  }
+
+  /*
+   * iOS Safari zooms the whole page when a focused field renders below 16px.
+   * Bumping only the small breakpoint keeps the desktop type scale untouched.
+   * Declared after `.input` so it wins within the same layer.
+   */
+  @media (max-width: 639px) {
+    .input {
+      font-size: 16px;
+      line-height: 1.5;
+    }
   }
 }

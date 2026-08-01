@@ -22,7 +22,7 @@ export default function Topbar({ onOpenSidebar }: Props) {
   }
 
   return (
-    <header className="sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white/80 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 lg:px-6">
+    <header className="topbar-safe sticky top-0 z-20 flex items-center gap-3 border-b border-slate-200 bg-white/80 px-4 pb-3 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 lg:px-6">
       <button className="lg:hidden" onClick={onOpenSidebar} aria-label="פתיחת תפריט">
         <Menu className="h-5 w-5" />
       </button>
