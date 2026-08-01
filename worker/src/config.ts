@@ -34,7 +34,7 @@ export interface Config {
   providerTimeoutMs: number;
 }
 
-export const DEFAULT_MODEL = 'claude-sonnet-5';
+export const DEFAULT_MODEL = 'claude-sonnet-4-20250514';
 export const DEFAULT_MAX_IMAGE_BYTES = 2 * 1024 * 1024;
 export const DEFAULT_MIN_CONFIDENCE = 0.8;
 export const DEFAULT_DAILY_LIMIT = 200;

@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { readConfig, DEFAULT_MAX_IMAGE_BYTES, DEFAULT_MIN_CONFIDENCE, DEFAULT_MODEL } from '../src/config';
 import { extractImage, resolveRequestId, toBase64 } from '../src/validation';
 import { RecognitionError } from '../src/errors';
@@ -24,8 +25,20 @@ describe('config defaults', () => {
     expect(defaults.allowedOrigins).toEqual([]);
   });
 
+  it('defaults to the documented Anthropic model identifier', () => {
+    // Pinned literally: a model id that is not documented would pass every local
+    // test and fail on the first real call.
+    expect(DEFAULT_MODEL).toBe('claude-sonnet-4-20250514');
+    expect(readConfig({}).model).toBe('claude-sonnet-4-20250514');
+  });
+
+  it('keeps the deployed default in wrangler.toml in step with the code default', () => {
+    const toml = readFileSync(new URL('../wrangler.toml', import.meta.url), 'utf8');
+    expect(toml).toContain(`ANTHROPIC_MODEL = "${DEFAULT_MODEL}"`);
+  });
+
   it('takes the model from configuration rather than code', () => {
-    expect(readConfig({ ANTHROPIC_MODEL: 'claude-opus-5' }).model).toBe('claude-opus-5');
+    expect(readConfig({ ANTHROPIC_MODEL: 'another-model-id' }).model).toBe('another-model-id');
   });
 
   it('ignores nonsense values instead of trusting them', () => {

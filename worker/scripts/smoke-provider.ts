@@ -11,7 +11,7 @@ import { extname } from 'node:path';
 // Imported from source so the smoke test exercises the same prompt and schema
 // the worker ships — drift here would make the check meaningless.
 import { AnthropicRecognitionProvider } from '../src/providers/AnthropicRecognitionProvider';
-import type { SupportedMimeType } from '../src/config';
+import { DEFAULT_MODEL, type SupportedMimeType } from '../src/config';
 
 const MIME_BY_EXTENSION: Record<string, SupportedMimeType> = {
   '.jpg': 'image/jpeg',
@@ -47,7 +47,7 @@ if (bytes.byteLength > MAX_BYTES) {
 
 
 const provider = new AnthropicRecognitionProvider(apiKey, {
-  model: process.env.ANTHROPIC_MODEL ?? 'claude-sonnet-5',
+  model: process.env.ANTHROPIC_MODEL ?? DEFAULT_MODEL,
   minConfidence: Number(process.env.MIN_CONFIDENCE ?? 0.8),
   providerTimeoutMs: 30_000,
   allowedOrigins: [],

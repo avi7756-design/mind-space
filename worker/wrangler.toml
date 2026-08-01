@@ -6,7 +6,7 @@ compatibility_date = "2025-01-15"
 #   wrangler secret put ANTHROPIC_API_KEY
 # and must never appear in this file, in .dev.vars.example or in source.
 [vars]
-ANTHROPIC_MODEL = "claude-sonnet-5"
+ANTHROPIC_MODEL = "claude-sonnet-4-20250514"
 ALLOWED_ORIGINS = "https://avi7756-design.github.io,http://localhost:4173,http://127.0.0.1:4173"
 MIN_CONFIDENCE = "0.80"
 DAILY_REQUEST_LIMIT = "200"

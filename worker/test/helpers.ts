@@ -8,7 +8,7 @@ export const ENDPOINT = 'https://recognition.example/v1/recognize';
 export function env(overrides: Partial<Env> = {}): Env {
   return {
     ANTHROPIC_API_KEY: 'test-key-not-real',
-    ANTHROPIC_MODEL: 'claude-sonnet-5',
+    ANTHROPIC_MODEL: 'claude-sonnet-4-20250514',
     ALLOWED_ORIGINS: `${ORIGIN},http://localhost:4173`,
     MIN_CONFIDENCE: '0.80',
     MAX_IMAGE_BYTES: String(2 * 1024 * 1024),
