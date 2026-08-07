@@ -40,6 +40,10 @@ jobs:
         working-directory: shopping-assistant
         run: npm run build
 
+      - name: Install Chromium for PWA verification
+        working-directory: shopping-assistant
+        run: npx playwright install --with-deps chromium
+
       - name: PWA base-path verification
         working-directory: shopping-assistant
         run: npm run test:pwa
