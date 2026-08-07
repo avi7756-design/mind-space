@@ -1,6 +1,16 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, Eye, PiggyBank, Search, ShieldCheck } from 'lucide-react';
+import {
+  ArrowDownRight,
+  Bell,
+  CircleDollarSign,
+  Eye,
+  PiggyBank,
+  Search,
+  ShieldCheck,
+  Sparkles,
+  Target,
+} from 'lucide-react';
 import KpiCard from '../components/ui/KpiCard';
 import SectionHeader from '../components/ui/SectionHeader';
 import PriceHistoryChart from '../components/charts/PriceHistoryChart';
@@ -15,22 +25,113 @@ export default function DashboardPage() {
   const alerts = useAppStore((s) => s.alerts);
   const activity = useAppStore((s) => s.activity);
   const suppliers = useAppStore((s) => s.suppliers);
+  const [featuredId, setFeaturedId] = useState<string | undefined>(watchlist[0]?.id);
 
   const stats = useMemo(() => {
     const totalSaving = totalSavings(watchlist);
     const belowTarget = watchlist.filter(hasReachedTarget).length;
-    const verified = suppliers.filter((s) => s.verification === 'verified' && !s.excluded).length;
+    const verifiedSuppliers = suppliers.filter((s) => s.verification === 'verified' && !s.excluded);
     const searches = activity.filter((a) => a.type === 'search').length;
-    return { totalSaving, belowTarget, verified, searches };
+    const targetGap = watchlist.reduce((sum, item) => sum + Math.max(0, item.currentPrice - item.targetPrice), 0);
+    const averageTrust = verifiedSuppliers.length
+      ? Math.round(verifiedSuppliers.reduce((sum, supplier) => sum + supplier.trustScore, 0) / verifiedSuppliers.length)
+      : 0;
+
+    return {
+      totalSaving,
+      belowTarget,
+      verified: verifiedSuppliers.length,
+      searches,
+      targetGap,
+      averageTrust,
+    };
   }, [watchlist, suppliers, activity]);
 
-  const featured = watchlist[0];
+  const opportunities = useMemo(
+    () =>
+      watchlist
+        .map((item) => {
+          const firstPrice = item.history[0]?.price ?? item.currentPrice;
+          const saving = Math.max(0, firstPrice - item.currentPrice);
+          const gap = item.currentPrice - item.targetPrice;
+          const reached = gap <= 0;
+          const gapPercent = item.targetPrice > 0 ? Math.max(0, (gap / item.targetPrice) * 100) : 0;
+          const supplier = suppliers.find((candidate) => candidate.id === item.supplierId);
+
+          return { item, saving, gap, gapPercent, reached, supplier };
+        })
+        .sort((a, b) => {
+          if (a.reached !== b.reached) return a.reached ? -1 : 1;
+          if (a.reached && b.reached) return b.saving - a.saving;
+          return a.gapPercent - b.gapPercent;
+        })
+        .slice(0, 3),
+    [watchlist, suppliers],
+  );
+
+  const riskySuppliers = suppliers.filter(
+    (supplier) => !supplier.excluded && (supplier.verification !== 'verified' || supplier.riskFlags.length > 0),
+  );
+  const pendingAlerts = alerts.filter((alert) => alert.status === 'pending').length;
+  const featured = watchlist.find((item) => item.id === featuredId) ?? watchlist[0];
+
+  const actionItems = [
+    stats.belowTarget > 0
+      ? {
+          title: `${stats.belowTarget} יעדי מחיר הושגו`,
+          description: 'כדאי לבדוק עכשיו את ההצעות לפני שינוי מחיר או מלאי.',
+          to: '/watchlist',
+          label: 'בדיקת רכישה',
+          tone: 'emerald' as const,
+        }
+      : null,
+    riskySuppliers.length > 0
+      ? {
+          title: `${riskySuppliers.length} ספקים דורשים תשומת לב`,
+          description: 'נמצאו ספקים לא מאומתים או עם דגלי סיכון פעילים.',
+          to: '/suppliers',
+          label: 'בדיקת ספקים',
+          tone: 'amber' as const,
+        }
+      : null,
+    pendingAlerts > 0
+      ? {
+          title: `${pendingAlerts} התראות ממתינות`,
+          description: 'יש אירועים שטרם הושלמה שליחתם בערוצי ההתראה.',
+          to: '/alerts',
+          label: 'טיפול בהתראות',
+          tone: 'rose' as const,
+        }
+      : null,
+    stats.searches === 0
+      ? {
+          title: 'עדיין לא בוצע חיפוש חדש',
+          description: 'התחילו מחיפוש מוצר כדי לקבל השוואה ודירוג Value.',
+          to: '/search',
+          label: 'חיפוש ראשון',
+          tone: 'brand' as const,
+        }
+      : null,
+  ].filter(Boolean) as Array<{
+    title: string;
+    description: string;
+    to: string;
+    label: string;
+    tone: 'brand' | 'emerald' | 'amber' | 'rose';
+  }>;
+
+  const actionToneClasses = {
+    brand: 'border-brand-200 bg-brand-50/70 dark:border-brand-900/60 dark:bg-brand-950/20',
+    emerald: 'border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/60 dark:bg-emerald-950/20',
+    amber: 'border-amber-200 bg-amber-50/70 dark:border-amber-900/60 dark:bg-amber-950/20',
+    rose: 'border-rose-200 bg-rose-50/70 dark:border-rose-900/60 dark:bg-rose-950/20',
+  };
 
   return (
     <div className="space-y-5">
       <SectionHeader
-        title="דשבורד ניהולי"
-        subtitle="תמונת מצב של החיפושים, המעקבים וההתראות שלכם"
+        title="ValueTrack — מרכז החלטות"
+        subtitle="לא רק מה השתנה במחיר — אלא מה כדאי לעשות עכשיו"
         actions={
           <Link to="/search" className="btn-primary">
             <Search className="h-4 w-4" /> חיפוש מוצר חדש
@@ -38,7 +139,32 @@ export default function DashboardPage() {
         }
       />
 
-      {/* KPI cards */}
+      <div className="card flex flex-col gap-4 p-5 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2 text-sm font-semibold text-brand-700 dark:text-brand-300">
+            <Sparkles className="h-4 w-4" /> תמונת החלטה
+          </div>
+          <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">
+            {stats.belowTarget > 0
+              ? `יש ${stats.belowTarget} מוצרים במחיר היעד או מתחתיו. מומלץ להתחיל מהם.`
+              : watchlist.length > 0
+                ? `עדיין אין מוצר שהגיע ליעד. הפער המצטבר הוא ${formatCurrency(stats.targetGap)}.`
+                : 'רשימת המעקב ריקה. חיפוש ראשון יאפשר ל-ValueTrack להתחיל למדוד הזדמנויות.'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2 text-xs">
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {alerts.length} התראות
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            {stats.searches} חיפושים
+          </span>
+          <span className="rounded-full bg-slate-100 px-3 py-1.5 text-slate-700 dark:bg-slate-800 dark:text-slate-200">
+            אמינות ממוצעת {stats.averageTrust}/100
+          </span>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="חיסכון מצטבר במעקב"
@@ -46,86 +172,136 @@ export default function DashboardPage() {
           subtitle="ירידת מחיר מאז תחילת המעקב"
           icon={PiggyBank}
           accent="emerald"
-          trend={{ value: 'המחירים במגמת ירידה', positive: true }}
+          trend={{ value: stats.totalSaving > 0 ? 'נוצר חיסכון מדיד' : 'ממתין לירידת מחיר', positive: stats.totalSaving > 0 }}
         />
         <KpiCard
-          title="מוצרים במעקב"
-          value={String(watchlist.length)}
-          subtitle={`${stats.belowTarget} מתחת למחיר היעד`}
-          icon={Eye}
+          title="יעדי מחיר שהושגו"
+          value={`${stats.belowTarget}/${watchlist.length}`}
+          subtitle={watchlist.length ? 'מוצרים במחיר היעד או מתחתיו' : 'אין מוצרים במעקב'}
+          icon={Target}
           accent="brand"
         />
         <KpiCard
           title="ספקים מאומתים"
           value={String(stats.verified)}
-          subtitle={`מתוך ${suppliers.length} במאגר`}
+          subtitle={`מתוך ${suppliers.length} במאגר · אמינות ${stats.averageTrust}/100`}
           icon={ShieldCheck}
           accent="amber"
         />
         <KpiCard
-          title="התראות שנשלחו"
-          value={String(alerts.length)}
-          subtitle={`${stats.searches} חיפושים ביומן`}
-          icon={Bell}
+          title="פער מצטבר ליעד"
+          value={formatCurrency(stats.targetGap)}
+          subtitle={`${Math.max(0, watchlist.length - stats.belowTarget)} מוצרים עדיין מעל היעד`}
+          icon={CircleDollarSign}
           accent="rose"
         />
       </div>
 
       <div className="grid gap-5 xl:grid-cols-3">
-        {/* Price trend chart */}
         <div className="card min-w-0 p-5 xl:col-span-2">
-          <div className="mb-3 flex items-center justify-between">
-            <div>
-              <h2 className="font-semibold">מגמת מחיר — {featured ? featured.productName : 'אין מוצרים במעקב'}</h2>
+          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <h2 className="font-semibold">מגמת מחיר</h2>
               {featured && (
-                <p className="text-xs text-slate-500 dark:text-slate-400">
-                  נוכחי: {formatCurrency(featured.currentPrice)} · יעד: {formatCurrency(featured.targetPrice)}
+                <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">
+                  {featured.productName} · נוכחי {formatCurrency(featured.currentPrice)} · יעד {formatCurrency(featured.targetPrice)}
                 </p>
               )}
             </div>
-            <Link to="/watchlist" className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-300">
-              לכל המעקבים
-            </Link>
+            {watchlist.length > 1 && (
+              <label className="text-xs text-slate-500 dark:text-slate-400">
+                מוצר להצגה
+                <select
+                  value={featured?.id ?? ''}
+                  onChange={(event) => setFeaturedId(event.target.value)}
+                  className="mt-1 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 outline-none focus:border-brand-400 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-100 sm:w-56"
+                >
+                  {watchlist.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.productName}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
           </div>
           {featured ? (
-            <PriceHistoryChart history={featured.history} targetPrice={featured.targetPrice} height={260} />
+            <PriceHistoryChart history={featured.history} targetPrice={featured.targetPrice} height={280} />
           ) : (
             <div className="flex h-64 items-center justify-center text-sm text-slate-400">
               הוסיפו מוצר למעקב כדי לראות מגמת מחירים
             </div>
           )}
-        </div>
-
-        {/* Recent alerts */}
-        <div className="card min-w-0 p-5">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">התראות אחרונות</h2>
-            <Link to="/alerts" className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-300">
-              לכל ההתראות
+          <div className="mt-3 flex justify-end">
+            <Link to="/watchlist" className="text-sm font-medium text-brand-600 hover:underline dark:text-brand-300">
+              לכל המעקבים
             </Link>
           </div>
+        </div>
+
+        <div className="card min-w-0 p-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="font-semibold">הזדמנויות לרכישה</h2>
+              <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">מדורג לפי יעד מחיר וחיסכון בפועל</p>
+            </div>
+            <ArrowDownRight className="h-5 w-5 text-emerald-500" />
+          </div>
           <div className="space-y-3">
-            {alerts.slice(0, 4).map((alert) => (
-              <div key={alert.id} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="text-sm font-medium">{alert.title}</span>
-                  <Badge tone={alert.type === 'price_drop' ? 'emerald' : 'amber'}>
-                    {alert.type === 'price_drop' ? 'מחיר' : alert.type === 'trust_change' ? 'אמינות' : 'מלאי'}
+            {opportunities.map(({ item, saving, gapPercent, reached, supplier }) => (
+              <div key={item.id} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-medium">{item.productName}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-400">
+                      {supplier?.name ?? 'ספק לא ידוע'} · {formatCurrency(item.currentPrice)}
+                    </p>
+                  </div>
+                  <Badge tone={reached ? 'emerald' : 'slate'}>
+                    {reached ? 'קנייה אפשרית ✓' : `${gapPercent.toFixed(1)}% ליעד`}
                   </Badge>
                 </div>
-                <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{alert.message}</p>
-                <div className="mt-1.5 text-[11px] text-slate-400">{formatDateTime(alert.createdAt)}</div>
+                <div className="mt-2 flex items-center justify-between text-xs">
+                  <span className="text-slate-500 dark:text-slate-400">יעד: {formatCurrency(item.targetPrice)}</span>
+                  <span className="font-medium text-emerald-600 dark:text-emerald-400">
+                    חיסכון {formatCurrency(saving)}
+                  </span>
+                </div>
               </div>
             ))}
-            {alerts.length === 0 && (
-              <p className="py-6 text-center text-sm text-slate-400">אין התראות עדיין</p>
-            )}
+            {opportunities.length === 0 && <p className="py-8 text-center text-sm text-slate-400">אין הזדמנויות להצגה</p>}
           </div>
         </div>
       </div>
 
+      <div className="card p-5">
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <div>
+            <h2 className="font-semibold">מרכז פעולה</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">הצעדים בעלי העדיפות הגבוהה ביותר כרגע</p>
+          </div>
+          <Bell className="h-5 w-5 text-brand-500" />
+        </div>
+        {actionItems.length > 0 ? (
+          <div className="grid gap-3 lg:grid-cols-3">
+            {actionItems.slice(0, 3).map((action) => (
+              <div key={action.title} className={`rounded-xl border p-4 ${actionToneClasses[action.tone]}`}>
+                <h3 className="text-sm font-semibold">{action.title}</h3>
+                <p className="mt-1.5 text-xs leading-5 text-slate-600 dark:text-slate-300">{action.description}</p>
+                <Link to={action.to} className="mt-3 inline-flex text-xs font-semibold text-brand-700 hover:underline dark:text-brand-300">
+                  {action.label} ←
+                </Link>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50/70 p-4 text-sm text-emerald-800 dark:border-emerald-900/60 dark:bg-emerald-950/20 dark:text-emerald-300">
+            אין כרגע חריגות לטיפול. אפשר להמשיך במעקב או לבצע חיפוש חדש.
+          </div>
+        )}
+      </div>
+
       <div className="grid gap-5 xl:grid-cols-3">
-        {/* Watchlist snapshot */}
         <div className="card min-w-0 p-5 xl:col-span-2">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold">רשימת מעקב</h2>
@@ -133,7 +309,27 @@ export default function DashboardPage() {
               ניהול מעקבים
             </Link>
           </div>
-          <div className="overflow-x-auto">
+
+          <div className="space-y-3 md:hidden">
+            {watchlist.slice(0, 5).map((item) => {
+              const reached = hasReachedTarget(item);
+              return (
+                <div key={item.id} className="rounded-xl border border-slate-100 p-3 dark:border-slate-800">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{item.productName}</p>
+                      <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+                        {formatCurrency(item.currentPrice)} · יעד {formatCurrency(item.targetPrice)}
+                      </p>
+                    </div>
+                    <Badge tone={reached ? 'emerald' : 'slate'}>{reached ? 'הושג ✓' : 'ממתין'}</Badge>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="hidden overflow-x-auto md:block">
             <table className="w-full min-w-[520px] text-sm">
               <thead>
                 <tr className="border-b border-slate-200 text-right text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
@@ -152,9 +348,7 @@ export default function DashboardPage() {
                       <td className="py-2.5 pl-4">{formatCurrency(item.currentPrice)}</td>
                       <td className="py-2.5 pl-4">{formatCurrency(item.targetPrice)}</td>
                       <td className="py-2.5">
-                        <Badge tone={reached ? 'emerald' : 'slate'}>
-                          {reached ? 'מתחת ליעד ✓' : 'מעל היעד'}
-                        </Badge>
+                        <Badge tone={reached ? 'emerald' : 'slate'}>{reached ? 'מתחת ליעד ✓' : 'מעל היעד'}</Badge>
                       </td>
                     </tr>
                   );
@@ -169,9 +363,15 @@ export default function DashboardPage() {
               </tbody>
             </table>
           </div>
+
+          {watchlist.length === 0 && (
+            <div className="py-8 text-center md:hidden">
+              <Eye className="mx-auto h-6 w-6 text-slate-300" />
+              <p className="mt-2 text-sm text-slate-400">אין מוצרים במעקב — הוסיפו מתוך תוצאות חיפוש</p>
+            </div>
+          )}
         </div>
 
-        {/* Recent activity */}
         <div className="card min-w-0 p-5">
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold">פעילות אחרונה</h2>
@@ -192,6 +392,7 @@ export default function DashboardPage() {
                 </li>
               );
             })}
+            {activity.length === 0 && <li className="py-6 text-center text-sm text-slate-400">אין פעילות עדיין</li>}
           </ul>
         </div>
       </div>
