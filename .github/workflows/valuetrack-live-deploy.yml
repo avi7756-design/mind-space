@@ -1,0 +1,68 @@
+name: ValueTrack live dashboard deploy
+
+on:
+  push:
+    branches:
+      - chatgpt/valuetrack-live-v2
+
+permissions:
+  contents: write
+
+jobs:
+  verify-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: shopping-assistant/package-lock.json
+
+      - name: Install dependencies
+        working-directory: shopping-assistant
+        run: npm ci
+
+      - name: Unit tests
+        working-directory: shopping-assistant
+        run: npm test
+
+      - name: Typecheck
+        working-directory: shopping-assistant
+        run: npm run typecheck
+
+      - name: Production build
+        working-directory: shopping-assistant
+        run: npm run build
+
+      - name: PWA base-path verification
+        working-directory: shopping-assistant
+        run: npm run test:pwa
+
+      - name: Stage verified build
+        run: |
+          rm -rf /tmp/valuetrack-dist
+          mkdir -p /tmp/valuetrack-dist
+          cp -a shopping-assistant/dist/. /tmp/valuetrack-dist/
+
+      - name: Deploy shopping build to main
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
+          git checkout main
+          rm -rf shopping
+          mkdir -p shopping
+          cp -a /tmp/valuetrack-dist/. shopping/
+          git add shopping
+          if git diff --cached --quiet; then
+            echo "No deployment changes detected."
+            exit 0
+          fi
+          git commit -m "deploy: ValueTrack dashboard v2"
+          git push origin main
