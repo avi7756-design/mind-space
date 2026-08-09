@@ -1,0 +1,129 @@
+// ---------- Domain types shared by the UI, the scoring engine and the future backend ----------
+
+export type StockStatus = 'in_stock' | 'low_stock' | 'preorder' | 'out_of_stock';
+
+export type VerificationStatus = 'verified' | 'pending' | 'unverified';
+
+export type RiskFlag =
+  | 'new_seller'
+  | 'price_anomaly'
+  | 'negative_reviews'
+  | 'slow_shipping'
+  | 'payment_disputes'
+  | 'counterfeit_reports';
+
+export interface Supplier {
+  id: string;
+  name: string;
+  domain: string;
+  country: string;
+  verification: VerificationStatus;
+  /** 0–100, computed from reviews, dispute rate and seniority */
+  trustScore: number;
+  rating: number;
+  reviewCount: number;
+  yearsActive: number;
+  riskFlags: RiskFlag[];
+  excluded: boolean;
+  exclusionReason?: string;
+}
+
+export type ReturnCost = 'free' | 'paid' | 'none';
+
+export interface Offer {
+  id: string;
+  productName: string;
+  supplierId: string;
+  basePrice: number;
+  shippingCost: number;
+  taxEstimate: number;
+  deliveryDaysMin: number;
+  deliveryDaysMax: number;
+  warrantyMonths: number;
+  returnDays: number;
+  returnCost: ReturnCost;
+  stock: StockStatus;
+  url: string;
+  currency: 'ILS';
+}
+
+export interface ScoreWeights {
+  totalCost: number;
+  trust: number;
+  delivery: number;
+  warranty: number;
+  returns: number;
+}
+
+export interface OfferScoreBreakdown {
+  totalCost: number;
+  trust: number;
+  delivery: number;
+  warranty: number;
+  returns: number;
+}
+
+export interface ScoredOffer extends Offer {
+  supplier: Supplier;
+  /** base + shipping + tax */
+  totalCost: number;
+  /** each dimension normalized to 0–100 within the compared set */
+  breakdown: OfferScoreBreakdown;
+  /** weighted composite, 0–100 */
+  valueScore: number;
+}
+
+export type RankingMode = 'value' | 'price' | 'trust';
+
+export interface PricePoint {
+  date: string; // ISO date
+  price: number;
+}
+
+export interface WatchlistItem {
+  id: string;
+  productName: string;
+  query: string;
+  supplierId: string;
+  currentPrice: number;
+  targetPrice: number;
+  history: PricePoint[];
+  createdAt: string;
+}
+
+export type AlertChannel = 'email' | 'telegram' | 'webhook';
+
+export type AlertType = 'price_drop' | 'trust_change' | 'back_in_stock';
+
+export interface AlertRecord {
+  id: string;
+  type: AlertType;
+  title: string;
+  message: string;
+  channels: AlertChannel[];
+  status: 'sent' | 'pending' | 'failed';
+  createdAt: string;
+  productName?: string;
+  supplierName?: string;
+}
+
+export interface AlertChannelSettings {
+  email: { enabled: boolean; address: string };
+  telegram: { enabled: boolean; chatId: string };
+  webhook: { enabled: boolean; url: string };
+}
+
+export type ActivityType =
+  | 'search'
+  | 'compare'
+  | 'track'
+  | 'alert'
+  | 'supplier_update'
+  | 'settings';
+
+export interface ActivityEntry {
+  id: string;
+  type: ActivityType;
+  message: string;
+  createdAt: string;
+}
